@@ -66,18 +66,43 @@ def fetch_city_data(city_name, lat, lon, all_fires_df, provincial_load):
     except Exception as e:
         print(f"   Smog fetch failed for {city_name}: {e}")
 
-    # C. OpenMeteo (Wind)
+    # C. OpenMeteo (Wind) - ROBUST VERSION (New API + Retries)
     om_url = "https://api.open-meteo.com/v1/forecast"
-    params = {"latitude": lat, "longitude": lon, "current_weather": "true"}
+    params = {
+        "latitude": lat, 
+        "longitude": lon, 
+        "current": "wind_speed_10m,wind_direction_10m", # New API Format
+        "wind_speed_unit": "kmh"
+    }
+    
     wind_spd, wind_dir = None, None
     
-    try:
-        resp = requests.get(om_url, params=params, timeout=10)
-        if resp.status_code == 200:
-            d = resp.json()['current_weather']
-            wind_spd, wind_dir = d['windspeed'], d['winddirection']
-    except Exception:
-        pass
+    # RETRY LOGIC: Try 3 times before giving up
+    for attempt in range(3):
+        try:
+            # increased timeout to 20s for stability
+            resp = requests.get(om_url, params=params, timeout=20) 
+            
+            if resp.status_code == 200:
+                data = resp.json()
+                if 'current' in data:
+                    wind_spd = data['current']['wind_speed_10m']
+                    wind_dir = data['current']['wind_direction_10m']
+                    break # Success! Exit the retry loop immediately
+                else:
+                    print(f"   Attempt {attempt+1}: Unexpected API format.")
+            elif resp.status_code == 429:
+                # 429 means "Too Many Requests" (Rate Limit)
+                print(f"   Attempt {attempt+1}: Rate limited. Waiting 5s...")
+                time.sleep(5)
+            else:
+                print(f"   Attempt {attempt+1}: Error {resp.status_code}")
+                
+        except Exception as e:
+            print(f"   Attempt {attempt+1} failed: {e}")
+        
+        # If we failed, wait 2 seconds before trying again (Exponential Backoff)
+        time.sleep(2)
 
     # Return the row
     return {
