@@ -1,0 +1,33 @@
+name: Punjab Smog Pipeline (Hourly)
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # Runs at minute 0 of every hour
+  workflow_dispatch:      # Allows manual trigger button
+
+jobs:
+  run-etl:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Download your code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Install Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      # 3. Install Libraries
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
+
+      # 4. Run the Pipeline
+      - name: Run ETL Script
+        env:
+          NASA_API_KEY: ${{ secrets.NASA_API_KEY }}
+          OWM_API_KEY: ${{ secrets.OWM_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python main.py
