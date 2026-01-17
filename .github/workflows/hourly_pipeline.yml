@@ -30,4 +30,4 @@ jobs:
           NASA_API_KEY: ${{ secrets.NASA_API_KEY }}
           OWM_API_KEY: ${{ secrets.OWM_API_KEY }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python main.py
+        run: python main_sql.py
