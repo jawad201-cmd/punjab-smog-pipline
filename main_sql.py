@@ -66,43 +66,57 @@ def fetch_city_data(city_name, lat, lon, all_fires_df, provincial_load):
     except Exception as e:
         print(f"   Smog fetch failed for {city_name}: {e}")
 
-    # C. OpenMeteo (Wind) - ROBUST VERSION (New API + Retries)
+# ---------------------------------------------------------
+    # C. WIND DATA (Dual-Source Strategy)
+    # ---------------------------------------------------------
+    wind_spd, wind_dir = None, None
+    
+    # --- PRIMARY SOURCE: OpenMeteo ---
     om_url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": lat, 
         "longitude": lon, 
-        "current": "wind_speed_10m,wind_direction_10m", # New API Format
+        "current": "wind_speed_10m,wind_direction_10m",
         "wind_speed_unit": "kmh"
     }
     
-    wind_spd, wind_dir = None, None
-    
-    # RETRY LOGIC: Try 3 times before giving up
-    for attempt in range(3):
-        try:
-            # increased timeout to 20s for stability
-            resp = requests.get(om_url, params=params, timeout=20) 
-            
-            if resp.status_code == 200:
-                data = resp.json()
-                if 'current' in data:
-                    wind_spd = data['current']['wind_speed_10m']
-                    wind_dir = data['current']['wind_direction_10m']
-                    break # Success! Exit the retry loop immediately
-                else:
-                    print(f"   Attempt {attempt+1}: Unexpected API format.")
-            elif resp.status_code == 429:
-                # 429 means "Too Many Requests" (Rate Limit)
-                print(f"   Attempt {attempt+1}: Rate limited. Waiting 5s...")
-                time.sleep(5)
-            else:
-                print(f"   Attempt {attempt+1}: Error {resp.status_code}")
-                
-        except Exception as e:
-            print(f"   Attempt {attempt+1} failed: {e}")
+    # Try OpenMeteo (Plan A)
+    try:
+        resp = requests.get(om_url, params=params, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            if 'current' in data:
+                wind_spd = data['current']['wind_speed_10m']
+                wind_dir = data['current']['wind_direction_10m']
+    except Exception as e:
+        print(f"   OpenMeteo failed for {city_name}: {e}")
+
+    # --- SECONDARY SOURCE: OpenWeatherMap (Fallback) ---
+    # If Plan A failed (wind_spd is still None), use Plan B
+    if wind_spd is None:
+        print(f"   Triggering Backup (OWM) for {city_name}...")
+        # Note: We use the 'weather' endpoint, not 'air_pollution'
+        owm_url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={OPENWEATHER_KEY}&units=metric"
         
-        # If we failed, wait 2 seconds before trying again (Exponential Backoff)
-        time.sleep(2)
+        try:
+            r = requests.get(owm_url, timeout=10)
+            if r.status_code == 200:
+                d = r.json()
+                # OWM gives speed in m/s, so we convert to km/h (x 3.6)
+                wind_spd = d['wind']['speed'] * 3.6
+                wind_dir = d['wind']['deg']
+                print(f"   Backup Saved the day: {wind_spd:.1f} km/h")
+            else:
+                print(f"   Backup also failed: {r.status_code}")
+        except Exception as e:
+            print(f"   Backup Error: {e}")
+            
+    # --- FINAL SAFETY NET ---
+    # If both failed, use 0.0 so the Database doesn't crash with NULLs
+    if wind_spd is None: 
+        wind_spd = 0.0
+    if wind_dir is None: 
+        wind_dir = 0.0
 
     # Return the row
     return {
