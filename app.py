@@ -21,20 +21,19 @@ def get_db_connection():
 # ==========================================
 # 1. GLOBAL CONTROLS (Top of Page)
 # ==========================================
-# Replaced Sidebar with a clean top-row filter
-f1, f2 = st.columns([1, 3]) # f1 is smaller for the dropdown
+f1, f2 = st.columns([1, 3]) 
 
 with f1:
     st.markdown("**Select Time Range:**")
     time_option = st.selectbox(
         "Time Range",
         ["Last 24 Hours", "Last 7 Days", "Last 30 Days", "Last 6 Months", "Last 1 Year", "Custom Range", "Specific Date"],
-        label_visibility="collapsed" # Hides the duplicate label for a cleaner look
+        label_visibility="collapsed"
     )
 
 # --- TIME LOGIC ---
 end_date = datetime.now()
-start_date = end_date - timedelta(hours=24) # Default
+start_date = end_date - timedelta(hours=24) 
 
 if time_option == "Last 7 Days":
     start_date = end_date - timedelta(days=7)
@@ -114,15 +113,20 @@ try:
                 x='pm2_5', y='district', 
                 orientation='h', 
                 color='pm2_5', color_continuous_scale='Reds',
-                text='pm2_5' # Clean label for bar chart is usually fine
+                text='pm2_5'
             )
             fig_bar.update_layout(yaxis={'categoryorder':'total ascending'})
             st.plotly_chart(fig_bar, use_container_width=True)
+            
+            # --- INFO NOTE ---
+            st.caption("""
+            **Role in Smog Analysis:** Identifies current "Hotspots." 
+            This helps authorities prioritize emergency measures (like school closures or lockdowns) in the most affected districts.
+            """)
 
         with c2:
             st.subheader("Trend Comparison")
             
-            # Smart City Selection
             fixed = ['Islamabad', 'Lahore', 'Multan', 'Faisalabad', 'Gujranwala', 'Sargodha']
             top_2 = latest_df.nlargest(2, 'pm2_5')['district'].tolist()
             final_list = list(set(fixed + top_2))
@@ -134,10 +138,15 @@ try:
                 x='timestamp', y='pm2_5', 
                 color='district',
                 markers=True,
-                # REMOVED: text='pm2_5' (As requested, makes it cleaner)
                 title=f"Comparison: Major Cities + {', '.join(top_2)}"
             )
             st.plotly_chart(fig_line, use_container_width=True)
+
+            # --- INFO NOTE ---
+            st.caption("""
+            **Role in Smog Analysis:** Tracks the "Persistence" of smog.
+            If the line stays flat and high, it means smog is trapped (Stagnation). If it dips during the day, it indicates ventilation.
+            """)
 
         st.divider()
 
@@ -146,14 +155,12 @@ try:
         # ==========================================
         st.header("Smog Diagnostics")
         
-        # --- LOCAL FILTER (Placed directly in this section) ---
         d_col1, d_col2 = st.columns([1, 3])
         with d_col1:
             st.markdown("**Select District to Analyze:**")
             districts = sorted(df['district'].unique())
             selected_city = st.selectbox("District", districts, label_visibility="collapsed")
 
-        # Filter Logic
         city_df = df[df['district'] == selected_city]
 
         if not city_df.empty:
@@ -171,6 +178,12 @@ try:
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
 
+                # --- INFO NOTE ---
+                st.caption("""
+                **Role in Smog Analysis:** Measures "Dispersion Capacity."
+                A downward trend line proves that higher wind speeds are successfully cleaning the air. If the line is flat, wind is ineffective.
+                """)
+
             with g2:
                 st.markdown(f"**Pollution Source ({selected_city})**")
                 rose_data = city_df.groupby('wind_cardinal')[['pm2_5', 'pm10']].mean().reset_index()
@@ -185,6 +198,12 @@ try:
                     title=f"Avg Pollution by Wind Direction"
                 )
                 st.plotly_chart(fig_rose, use_container_width=True)
+
+                # --- INFO NOTE ---
+                st.caption("""
+                **Role in Smog Analysis:** Identifies the "Source."
+                Long bars indicate which direction the pollution is blowing from (e.g., East = Cross-border crop burning; West = Local vehicular emissions).
+                """)
 
             with st.expander(f"View Raw Data for {selected_city}"):
                 st.dataframe(city_df)
