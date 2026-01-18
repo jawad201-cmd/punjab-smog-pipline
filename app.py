@@ -6,9 +6,9 @@ import plotly.express as px
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Punjab Smog Intelligence", page_icon="🌫️", layout="wide")
 
-# --- HEADER & TITLE ---
+# --- HEADER ---
 st.title("Punjab Smog Intelligence Platform")
-st.markdown("Analyze how **Wind Speed** and **Wind Direction** impact Smog levels (PM2.5 & PM10).")
+st.markdown("Real-time pollution monitoring (PM2.5/PM10) combined with Wind Dynamics analysis.")
 st.divider()
 
 # --- DATABASE CONNECTION ---
@@ -20,7 +20,7 @@ def get_db_connection():
 # --- LOAD DATA ---
 def load_data():
     engine = get_db_connection()
-    # Fetch more data (2000 rows) to ensure good charts
+    # Fetch 2000 rows to ensure we have enough history for trendlines
     query = """
     SELECT * FROM smog_metrics 
     ORDER BY timestamp DESC 
@@ -30,118 +30,154 @@ def load_data():
         df = pd.read_sql(query, conn)
     return df
 
-# --- HELPER: PROCESS WIND DIRECTION ---
+# --- HELPER: WIND CARDINALS ---
 def add_wind_cardinals(df):
-    """Converts 0-360 degrees into N, NE, E, SE... for the chart"""
     bins = [0, 45, 90, 135, 180, 225, 270, 315, 360]
     labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-    # Use 'include_lowest' to catch 0 degrees
     df['wind_cardinal'] = pd.cut(df['wind_dir'], bins=bins, labels=labels, include_lowest=True)
     return df
 
-# --- MAIN DASHBOARD LOGIC ---
+# --- MAIN DASHBOARD ---
 try:
-    with st.spinner("Fetching pollution data..."):
-        raw_df = load_data()
-        df = add_wind_cardinals(raw_df)
+    with st.spinner("Syncing with Supabase Cloud..."):
+        # 1. Load the "Global" Dataset (All cities)
+        global_df = load_data()
+        global_df = add_wind_cardinals(global_df)
 
     # ==========================================
-    # 1. SIDEBAR FILTER (The City Chooser)
+    # SIDEBAR FILTER
     # ==========================================
     with st.sidebar:
-        st.header("Filter Controls")
-        
-        # Get unique list of districts sorted alphabetically
-        districts = sorted(df['district'].unique())
-        # Add an "All Punjab" option at the top
+        st.header("Controls")
+        districts = sorted(global_df['district'].unique())
         districts.insert(0, "All Punjab")
-        
-        selected_city = st.selectbox("Choose a District:", districts)
-        
-        st.info(f"Viewing analysis for: **{selected_city}**")
-        st.markdown("---")
-        st.caption("Data updates hourly via GitHub Actions.")
+        selected_city = st.selectbox("Select Region:", districts)
+        st.caption(f"Analyzing: {selected_city}")
+        st.divider()
+        st.markdown("Created with **Python, Supabase & Streamlit**")
 
-    # FILTER THE DATAFRAME BASED ON SELECTION
+    # 2. Create the "Filtered" Dataset (Selected city only)
     if selected_city != "All Punjab":
-        filtered_df = df[df['district'] == selected_city]
+        filtered_df = global_df[global_df['district'] == selected_city]
     else:
-        filtered_df = df
+        filtered_df = global_df
 
-    # Only show dashboard if we have data for that city
     if not filtered_df.empty:
+        # Get latest snapshot for KPIs
+        latest_time = filtered_df['timestamp'].max()
+        current_data = filtered_df[filtered_df['timestamp'] == latest_time]
+        
+        # Taking mean ensures if "All Punjab" is selected, we get province averages
+        # If "Lahore" is selected, mean of 1 row is just that row's value.
+        kpi_pm25 = current_data['pm2_5'].mean()
+        kpi_pm10 = current_data['pm10'].mean()
+        kpi_wind = current_data['wind_speed'].mean()
         
         # ==========================================
-        # 2. KPI ROW (Live Status)
+        # SECTION A: VITAL SIGNS (KPIs)
         # ==========================================
-        # Get the single most recent record for the metrics
-        latest_record = filtered_df.iloc[0] 
-        
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Current PM2.5", f"{latest_record['pm2_5']:.0f}", "Fine Particles")
-        col2.metric("Current PM10", f"{latest_record['pm10']:.0f}", "Dust / Coarse")
-        col3.metric("Wind Speed", f"{latest_record['wind_speed']:.1f} km/h", "Dispersion Power")
-        col4.metric("Wind Direction", f"{latest_record['wind_cardinal']}", f"{latest_record['wind_dir']}°")
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("PM2.5 Level", f"{kpi_pm25:.0f} µg/m³", "Fine Particles")
+        c2.metric("PM10 Level", f"{kpi_pm10:.0f} µg/m³", "Dust / Coarse")
+        c3.metric("Wind Speed", f"{kpi_wind:.1f} km/h", "Dispersion Factor")
+        c4.metric("Last Updated", str(latest_time))
 
         st.divider()
 
         # ==========================================
-        # 3. ANALYSIS CHARTS (The "Why")
+        # SECTION B: REAL-TIME MONITORING (The "Previous Graphs")
         # ==========================================
+        st.subheader("Live Monitoring")
         
-        c1, c2 = st.columns(2)
-
-        # CHART A: WIND SPEED IMPACT (Scatter Plot)
-        with c1:
-            st.subheader("Does Wind clear the Smog?")
-            st.caption(f"Visualizing the relationship between Wind Speed and PM2.5 in **{selected_city}**.")
+        m1, m2 = st.columns(2)
+        
+        with m1:
+            st.markdown("**Severity Leaderboard (Top 10)**")
+            # We ALWAYS use 'global_df' here so we can see the "Top 10" 
+            # even when looking at a specific city (for comparison context)
             
+            # Get latest slice of GLOBAL data
+            global_latest = global_df[global_df['timestamp'] == global_df['timestamp'].max()]
+            top_10 = global_latest.nlargest(10, 'pm2_5')
+            
+            fig_bar = px.bar(
+                top_10, 
+                x='pm2_5', y='district', 
+                orientation='h', 
+                color='pm2_5', color_continuous_scale='Reds',
+                text_auto=True
+            )
+            fig_bar.update_layout(yaxis={'categoryorder':'total ascending'}, margin=dict(l=0,r=0,t=0,b=0))
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        with m2:
+            st.markdown(f"**24-Hour Trend ({selected_city})**")
+            # We use 'filtered_df' here to show the trend for the selection
+            
+            # If "All Punjab", simplify chart to show only Top 5 cities to avoid clutter
+            if selected_city == "All Punjab":
+                top_cities = global_latest.nlargest(5, 'pm2_5')['district'].tolist()
+                line_data = global_df[global_df['district'].isin(top_cities)]
+                title_text = "Trends (Top 5 Polluted Cities)"
+            else:
+                line_data = filtered_df
+                title_text = f"PM2.5 Trend: {selected_city}"
+
+            fig_line = px.line(
+                line_data, 
+                x='timestamp', y='pm2_5', 
+                color='district',
+                markers=True
+            )
+            st.plotly_chart(fig_line, use_container_width=True)
+
+        st.divider()
+
+        # ==========================================
+        # SECTION C: SMOG DYNAMICS (The "New Analysis")
+        # ==========================================
+        st.subheader(f"Smog Diagnostics: {selected_city}")
+        
+        a1, a2 = st.columns(2)
+
+        with a1:
+            st.markdown("**Wind Dispersion Analysis**")
+            # Scatter Plot: Does Wind Speed (X) lower PM2.5 (Y)?
             fig_scatter = px.scatter(
-                filtered_df,
-                x="wind_speed",
-                y="pm2_5",
-                color="pm2_5",
-                color_continuous_scale="RdYlGn_r", # Green=Low, Red=High
-                size="pm10", # Bubbles get bigger if there is also dust
-                trendline="ols", # Shows the trend line (Requires statsmodels)
-                title="Impact of Wind Speed on PM2.5",
-                labels={"wind_speed": "Wind Speed (km/h)", "pm2_5": "PM2.5 Level"}
+                filtered_df, # Use filtered data
+                x="wind_speed", y="pm2_5",
+                color="pm2_5", color_continuous_scale="RdYlGn_r",
+                size="pm10", 
+                trendline="ols", # Requires statsmodels
+                labels={"wind_speed": "Wind Speed (km/h)", "pm2_5": "PM2.5"}
             )
             st.plotly_chart(fig_scatter, use_container_width=True)
-            st.info("**Insight:** If the trend line goes **DOWN** , it proves that higher wind speeds are successfully blowing the smog away.")
+            st.caption("**Trendline:** Downward slope = Wind is clearing the smog.")
 
-        # CHART B: POLLUTION SOURCE (Wind Rose)
-        with c2:
-            st.subheader("Where is the Smog coming from?")
-            st.caption("Average PM2.5 and PM10 levels based on Wind Direction.")
+        with a2:
+            st.markdown("**Pollution Source Map (Wind Rose)**")
+            # Polar Chart: Where is the wind coming from?
             
-            # Group data by direction (N, NE, E...) and take the average pollution
-            rose_data = filtered_df.groupby('wind_cardinal')[['pm2_5', 'pm10']].mean().reset_index()
+            # Group by direction
+            rose_data = filtered_df.groupby('wind_cardinal')[['pm2_5']].mean().reset_index()
             
-            # We melt the data so we can show both PM2.5 and PM10 on the same chart
-            rose_melted = rose_data.melt(id_vars='wind_cardinal', var_name='Pollutant', value_name='Concentration')
-
             fig_rose = px.bar_polar(
-                rose_melted,
-                r="Concentration",
-                theta="wind_cardinal",
-                color="Pollutant",
-                template="plotly_dark",
-                color_discrete_map={"pm2_5": "#FF4B4B", "pm10": "#FFA500"}, # Red for PM2.5, Orange for PM10
-                title=f"Pollution Source Map ({selected_city})"
+                rose_data,
+                r="pm2_5", theta="wind_cardinal",
+                color="pm2_5", color_continuous_scale="Reds",
+                template="plotly_dark"
             )
             st.plotly_chart(fig_rose, use_container_width=True)
-            st.info("💡 **Insight:** The longest bars point to the **Source**. (e.g., If 'E' is huge, pollution comes from the East).")
+            st.caption("**Insight:** Bars point to the pollution source direction.")
 
         # ==========================================
-        # 4. RAW DATA
+        # RAW DATA EXPANDER
         # ==========================================
-        with st.expander(f"View Raw Data for {selected_city}"):
+        with st.expander("View Raw Data"):
             st.dataframe(filtered_df)
 
     else:
-        st.warning(f"No data found for {selected_city}. Wait for the next scheduled run.")
+        st.warning("No data available yet.")
 
 except Exception as e:
     st.error(f"App Error: {e}")
-    st.caption("Make sure 'statsmodels' is in your requirements.txt for the trendline feature.")
