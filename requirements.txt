@@ -2,3 +2,5 @@ requests
 pandas
 sqlalchemy
 psycopg2-binary
+plotly
+streamlit
