@@ -328,16 +328,41 @@ try:
 
         with c1:
             st.subheader("Top 10 Polluted Districts")
-            top_10 = latest_df.nlargest(10, 'pm2_5')
+            top_10 = latest_df.nlargest(10, "pm2_5")[["district", "pm2_5", "pm10"]].copy()
+
+            # Keep district order strictly by PM2.5 (descending)
+            top_10["district"] = pd.Categorical(
+                top_10["district"],
+                categories=top_10.sort_values("pm2_5", ascending=False)["district"].tolist(),
+                ordered=True,
+            )
+
+            top_10_melt = top_10.melt(
+                id_vars="district",
+                value_vars=["pm2_5", "pm10"],
+                var_name="Pollutant",
+                value_name="Value",
+            )
 
             fig_bar = px.bar(
-                top_10,
-                x='pm2_5', y='district',
-                orientation='h',
-                color='pm2_5', color_continuous_scale='Reds',
-                text='pm2_5'
+                top_10_melt,
+                x="Value",
+                y="district",
+                orientation="h",
+                color="Pollutant",
+                barmode="group",
+                text=top_10_melt["Value"].round(0).astype(int),
+                color_discrete_map={"pm2_5": "#FF4B4B", "pm10": "#FFA500"},
             )
-            fig_bar.update_layout(yaxis={'categoryorder': 'total ascending'})
+
+            fig_bar.update_traces(textposition="outside", cliponaxis=False)
+            fig_bar.update_layout(
+                yaxis={"categoryorder": "array", "categoryarray": top_10["district"].tolist()},
+                xaxis_title="µg/m³",
+                legend_title_text="",
+                margin=dict(l=10, r=10, t=10, b=10),
+            )
+
             st.plotly_chart(fig_bar, use_container_width=True, config=PLOTLY_CONFIG)
 
             # --- INFO NOTE ---
