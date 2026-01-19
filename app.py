@@ -106,6 +106,11 @@ def inject_global_ux_css():
             box-shadow: 0 10px 24px rgba(0,0,0,0.08);
         }
 
+        div[data-testid="stPlotlyChart"] {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        }
+
         /* Expanders: smoother open/close feel */
         details[data-testid="stExpander"] {
             border-radius: 12px;
@@ -434,39 +439,66 @@ try:
                 st.plotly_chart(fig_rose, use_container_width=True, config=PLOTLY_CONFIG)
                 
                 # ----------------------------
-                # Map-based Wind Rose (Dark Map)
-                # Shows affected geographic sectors + magnitude
+                # Map-based Wind Rose (Dark Map) — refined
+                # - No direction labels in legend
+                # - Compass overlay
+                # - PM2.5 / PM10 colored sectors + legend
+                # - Higher contrast boundaries/text
+                # - Rounded corners handled by CSS (overflow hidden + border radius)
                 # ----------------------------
                 if selected_city not in DISTRICT_CENTROIDS:
                     st.caption("Map overlay not available (missing district coordinates).")
                 else:
                     src_lat, src_lon = DISTRICT_CENTROIDS[selected_city]
 
-                    # Ensure consistent direction order
                     dir_order = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
                     rose_data_ordered = rose_data.set_index("wind_cardinal").reindex(dir_order).reset_index()
 
-                    # Choose which pollutant drives impact magnitude (PM2.5 is typical)
-                    vals = rose_data_ordered["pm2_5"].fillna(0).astype(float)
-                    v_max = float(vals.max()) if float(vals.max()) > 0 else 1.0
+                    # Scale separately for PM2.5 and PM10
+                    pm25_vals = rose_data_ordered["pm2_5"].fillna(0).astype(float)
+                    pm10_vals = rose_data_ordered["pm10"].fillna(0).astype(float)
+                    pm25_max = float(pm25_vals.max()) if float(pm25_vals.max()) > 0 else 1.0
+                    pm10_max = float(pm10_vals.max()) if float(pm10_vals.max()) > 0 else 1.0
 
-                    # Map styling: dark theme without needing tokens
+                    # Colors to match your polar chart
+                    PM25_COLOR = "#FF4B4B"
+                    PM10_COLOR = "#FFA500"
+
+                    # Base map (dark) + high contrast text
                     fig_map_rose = px.scatter_mapbox(
                         lat=[src_lat],
                         lon=[src_lon],
                         zoom=7,
                         height=430,
-                        title=f"Downwind Impact Sectors (PM2.5) — {selected_city}"
+                        title=f"Downwind Impact Sectors — {selected_city}"
                     )
                     fig_map_rose.update_layout(
                         mapbox_style="carto-darkmatter",
-                        margin=dict(l=0, r=0, t=40, b=0)
+                        margin=dict(l=0, r=0, t=45, b=0),
+                        paper_bgcolor="rgba(0,0,0,0)",
+                        font=dict(color="rgba(255,255,255,0.92)"),
+                        title_font=dict(color="rgba(255,255,255,0.96)"),
+                        legend=dict(
+                            orientation="h",
+                            yanchor="top",
+                            y=1.02,
+                            xanchor="left",
+                            x=0.0,
+                            bgcolor="rgba(0,0,0,0.35)",
+                            bordercolor="rgba(255,255,255,0.22)",
+                            borderwidth=1,
+                            font=dict(color="rgba(255,255,255,0.92)"),
+                        ),
+                        dragmode=False,  # consistent with your “no zoom/crop” preference
                     )
 
-                    # Draw 8 sectors (each 45° wide, centered on cardinal direction)
-                    # Sector radius scales with PM2.5 magnitude (shows "how much")
-                    base_km = 15       # minimum visible radius
-                    max_add_km = 85    # extra radius at max PM2.5
+                    # Sector sizing
+                    base_km = 12
+                    max_add_km = 90
+
+                    # Legend toggles (show PM2.5/PM10 once)
+                    shown_pm25_legend = False
+                    shown_pm10_legend = False
 
                     for _, row in rose_data_ordered.iterrows():
                         d = row["wind_cardinal"]
@@ -480,39 +512,64 @@ try:
                         pm25 = float(row["pm2_5"]) if pd.notna(row["pm2_5"]) else 0.0
                         pm10 = float(row["pm10"]) if pd.notna(row["pm10"]) else 0.0
 
-                        # Scale radius by PM2.5
-                        radius_km = base_km + (pm25 / v_max) * max_add_km
+                        # Separate radii so both pollutants are visible
+                        r25 = base_km + (pm25 / pm25_max) * max_add_km
+                        r10 = base_km + (pm10 / pm10_max) * max_add_km
 
-                        # Sector span: 45° bin => +/- 22.5°
+                        # 45° bin => +/- 22.5°
                         start_b = (bearing_center - 22.5) % 360
                         end_b = (bearing_center + 22.5) % 360
 
-                        lats, lons = make_sector_polygon(src_lat, src_lon, start_b, end_b, radius_km, steps=18)
-
-                        # Opacity also reflects strength
-                        opacity = 0.15 + 0.45 * (pm25 / v_max)
-
+                        # Draw PM10 first (typically larger), then PM2.5 on top
+                        # --- PM10 sector ---
+                        lats10, lons10 = make_sector_polygon(src_lat, src_lon, start_b, end_b, r10, steps=18)
                         fig_map_rose.add_trace(
                             dict(
                                 type="scattermapbox",
-                                lat=lats,
-                                lon=lons,
+                                lat=lats10,
+                                lon=lons10,
                                 mode="lines",
                                 fill="toself",
-                                name=f"{d}",
+                                legendgroup="pm10",
+                                name="pm10",
+                                showlegend=(not shown_pm10_legend),
                                 hovertemplate=(
-                                    f"<b>{d}</b><br>"
-                                    f"PM2.5: {pm25:.0f}<br>"
-                                    f"PM10: {pm10:.0f}<br>"
-                                    f"Impact radius: {radius_km:.0f} km"
+                                    f"<b>Direction</b>: {d}<br>"
+                                    f"<b>PM10</b>: {pm10:.0f}<br>"
+                                    f"<b>Radius</b>: {r10:.0f} km"
                                     "<extra></extra>"
                                 ),
-                                line=dict(width=1),
-                                opacity=opacity,
+                                line=dict(width=2, color="rgba(255,165,0,0.95)"),  # high-contrast boundary
+                                fillcolor="rgba(255,165,0,0.18)",
                             )
                         )
+                        shown_pm10_legend = True
 
-                    # Source marker on top
+                        # --- PM2.5 sector ---
+                        lats25, lons25 = make_sector_polygon(src_lat, src_lon, start_b, end_b, r25, steps=18)
+                        fig_map_rose.add_trace(
+                            dict(
+                                type="scattermapbox",
+                                lat=lats25,
+                                lon=lons25,
+                                mode="lines",
+                                fill="toself",
+                                legendgroup="pm25",
+                                name="pm2_5",
+                                showlegend=(not shown_pm25_legend),
+                                hovertemplate=(
+                                    f"<b>Direction</b>: {d}<br>"
+                                    f"<b>PM2.5</b>: {pm25:.0f}<br>"
+                                    f"<b>Radius</b>: {r25:.0f} km"
+                                    "<extra></extra>"
+                                ),
+                                line=dict(width=2, color="rgba(255,75,75,0.95)"),
+                                fillcolor="rgba(255,75,75,0.22)",
+                            )
+                        )
+                        shown_pm25_legend = True
+
+                    # Source marker
                     fig_map_rose.add_trace(
                         dict(
                             type="scattermapbox",
@@ -520,16 +577,41 @@ try:
                             lon=[src_lon],
                             mode="markers",
                             name="Selected District",
-                            marker=dict(size=12),
+                            showlegend=False,
+                            marker=dict(size=12, color="rgba(255,255,255,0.95)"),
                             hovertemplate=f"<b>{selected_city}</b><extra></extra>"
                         )
                     )
 
-                    # Optional: disable drag zoom if you want (consistent with your earlier UX choice)
-                    fig_map_rose.update_layout(dragmode=False)
+                    # ----------------------------
+                    # Small Compass (paper coords) — no direction labels in legend
+                    # ----------------------------
+                    # Draw a minimal compass in the top-right corner using shapes + annotations
+                    fig_map_rose.update_layout(
+                        shapes=[
+                            # vertical line
+                            dict(type="line", xref="paper", yref="paper", x0=0.94, y0=0.12, x1=0.94, y1=0.24,
+                                line=dict(color="rgba(255,255,255,0.85)", width=2)),
+                            # horizontal line
+                            dict(type="line", xref="paper", yref="paper", x0=0.88, y0=0.18, x1=1.00, y1=0.18,
+                                line=dict(color="rgba(255,255,255,0.85)", width=2)),
+                            # arrow (north)
+                            dict(type="line", xref="paper", yref="paper", x0=0.94, y0=0.24, x1=0.94, y1=0.27,
+                                line=dict(color="rgba(255,255,255,0.95)", width=3)),
+                        ],
+                        annotations=[
+                            dict(xref="paper", yref="paper", x=0.94, y=0.285, text="<b>N</b>", showarrow=False,
+                                font=dict(color="rgba(255,255,255,0.95)", size=12)),
+                            dict(xref="paper", yref="paper", x=0.94, y=0.10, text="S", showarrow=False,
+                                font=dict(color="rgba(255,255,255,0.75)", size=10)),
+                            dict(xref="paper", yref="paper", x=1.01, y=0.18, text="E", showarrow=False,
+                                font=dict(color="rgba(255,255,255,0.75)", size=10)),
+                            dict(xref="paper", yref="paper", x=0.87, y=0.18, text="W", showarrow=False,
+                                font=dict(color="rgba(255,255,255,0.75)", size=10)),
+                        ],
+                    )
 
                     st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
-
 
                 # --- INFO NOTE ---
                 st.caption("""
