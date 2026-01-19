@@ -333,7 +333,7 @@ try:
             # Keep district order strictly by PM2.5 (descending)
             top_10["district"] = pd.Categorical(
                 top_10["district"],
-                categories=top_10.sort_values("pm2_5")["district"].tolist(),
+                categories=top_10.sort_values("pm2_5", ascending=True)["district"].tolist(),
                 ordered=True,
             )
 
@@ -357,7 +357,10 @@ try:
 
             fig_bar.update_traces(textposition="outside", cliponaxis=False)
             fig_bar.update_layout(
-                yaxis={"categoryorder": "array", "categoryarray": top_10["district"].tolist()},
+                yaxis={
+                    "categoryorder": "array",
+                    "categoryarray": top_10.sort_values("pm2_5", ascending=True)["district"].tolist()
+                },
                 xaxis_title="µg/m³",
                 legend_title_text="",
                 margin=dict(l=10, r=10, t=10, b=10),
