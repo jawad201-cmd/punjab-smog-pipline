@@ -484,7 +484,7 @@ try:
                         title=f"Downwind Impact Sectors — {selected_city}"
                     )
                     fig_map_rose.update_layout(
-                        mapbox_style="carto-darkmatter",
+                        mapbox_style="carto-darkmatter-nolabels",
                         margin=dict(l=0, r=0, t=45, b=0),
                         paper_bgcolor="rgba(0,0,0,0)",
                         font=dict(color="rgba(255,255,255,0.92)"),
