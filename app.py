@@ -9,6 +9,40 @@ from locations import DISTRICTS
 
 DISTRICT_CENTROIDS = {k: (v["lat"], v["lon"]) for k, v in DISTRICTS.items()}
 
+CARDINAL_TO_DEG = {
+    "N": 0, "NE": 45, "E": 90, "SE": 135,
+    "S": 180, "SW": 225, "W": 270, "NW": 315
+}
+
+def km_to_lat(km: float) -> float:
+    return km / 111.0
+
+def km_to_lon(km: float, lat_deg: float) -> float:
+    return km / (111.0 * max(0.15, math.cos(math.radians(lat_deg))))
+
+def destination_point(lat: float, lon: float, bearing_deg: float, distance_km: float) -> tuple[float, float]:
+    # Small-distance approximation (good for ~0–200km)
+    dlat = km_to_lat(distance_km) * math.cos(math.radians(bearing_deg))
+    dlon = km_to_lon(distance_km, lat) * math.sin(math.radians(bearing_deg))
+    return (lat + dlat, lon + dlon)
+
+def make_sector_polygon(lat: float, lon: float, start_bearing: float, end_bearing: float, radius_km: float, steps: int = 18):
+    """
+    Builds a wedge (sector) polygon centered at (lat, lon).
+    Returns lists: (lats, lons) suitable for scattermapbox with fill="toself".
+    """
+    # Ensure clockwise sweep
+    if end_bearing < start_bearing:
+        end_bearing += 360
+
+    bearings = [start_bearing + i * (end_bearing - start_bearing) / steps for i in range(steps + 1)]
+    arc_pts = [destination_point(lat, lon, b % 360, radius_km) for b in bearings]
+
+    poly = [(lat, lon)] + arc_pts + [(lat, lon)]
+    lats = [p[0] for p in poly]
+    lons = [p[1] for p in poly]
+    return lats, lons
+
 PLOTLY_CONFIG = {
     "displayModeBar": True,
     "displaylogo": False,
@@ -146,43 +180,6 @@ def persist_scroll_position_across_reruns():
 
 inject_global_ux_css()
 persist_scroll_position_across_reruns()
-
-# Core geometry helpers (bearing + distance + cone test)
-def haversine_km(lat1, lon1, lat2, lon2):
-    R = 6371.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dl = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
-    return 2*R*math.asin(math.sqrt(a))
-
-def bearing_deg(lat1, lon1, lat2, lon2):
-    # bearing from point 1 to point 2
-    y = math.sin(math.radians(lon2-lon1)) * math.cos(math.radians(lat2))
-    x = math.cos(math.radians(lat1))*math.sin(math.radians(lat2)) - math.sin(math.radians(lat1))*math.cos(math.radians(lat2))*math.cos(math.radians(lon2-lon1))
-    b = math.degrees(math.atan2(y, x))
-    return (b + 360) % 360
-
-def ang_diff(a, b):
-    d = abs(a - b) % 360
-    return min(d, 360 - d)
-
-def districts_in_cone(src_name, center_bearing, half_angle=20, max_km=120):
-    src = DISTRICT_CENTROIDS.get(src_name)
-    if not src:
-        return []
-    lat1, lon1 = src
-    hits = []
-    for name, (lat2, lon2) in DISTRICT_CENTROIDS.items():
-        if name == src_name:
-            continue
-        d = haversine_km(lat1, lon1, lat2, lon2)
-        if d > max_km:
-            continue
-        b = bearing_deg(lat1, lon1, lat2, lon2)  # direction from src -> target
-        if ang_diff(b, center_bearing) <= half_angle:
-            hits.append((name, d))
-    return hits  # (district, distance_km)
 
 # --- HEADER ---
 st.title("Punjab Smog Intelligence Platform")
@@ -400,35 +397,6 @@ try:
 
         city_df = df[df['district'] == selected_city]
 
-        # Compute inbound/outbound scores for selected district
-        def compute_inbound_outbound(city_df, selected_city, half_angle=20, max_km=120):
-            inbound = {}
-            outbound = {}
-
-            # Only use rows where wind_dir + pm2_5 exist
-            dfv = city_df.dropna(subset=["wind_dir", "pm2_5"]).copy()
-
-            for _, r in dfv.iterrows():
-                wdir = float(r["wind_dir"]) % 360
-                pm = float(r["pm2_5"])
-
-                # inbound: air came FROM upwind direction
-                upwind = (wdir + 180) % 360
-                sources = districts_in_cone(selected_city, upwind, half_angle=half_angle, max_km=max_km)
-                for src_name, dist_km in sources:
-                    weight = 1.0 / max(1.0, dist_km)  # closer gets more weight
-                    inbound[src_name] = inbound.get(src_name, 0.0) + pm * weight
-
-                # outbound: air goes TO downwind direction
-                targets = districts_in_cone(selected_city, wdir, half_angle=half_angle, max_km=max_km)
-                for tgt_name, dist_km in targets:
-                    weight = 1.0 / max(1.0, dist_km)
-                    outbound[tgt_name] = outbound.get(tgt_name, 0.0) + pm * weight
-
-            return inbound, outbound
-
-        inbound_scores, outbound_scores = compute_inbound_outbound(city_df, selected_city, half_angle=20, max_km=120)
-
         if not city_df.empty:
             g1, g2 = st.columns(2)
 
@@ -464,85 +432,110 @@ try:
                     title=f"Avg Pollution by Wind Direction"
                 )
                 st.plotly_chart(fig_rose, use_container_width=True, config=PLOTLY_CONFIG)
+                
+                # ----------------------------
+                # Map-based Wind Rose (Dark Map)
+                # Shows affected geographic sectors + magnitude
+                # ----------------------------
+                if selected_city not in DISTRICT_CENTROIDS:
+                    st.caption("Map overlay not available (missing district coordinates).")
+                else:
+                    src_lat, src_lon = DISTRICT_CENTROIDS[selected_city]
+
+                    # Ensure consistent direction order
+                    dir_order = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+                    rose_data_ordered = rose_data.set_index("wind_cardinal").reindex(dir_order).reset_index()
+
+                    # Choose which pollutant drives impact magnitude (PM2.5 is typical)
+                    vals = rose_data_ordered["pm2_5"].fillna(0).astype(float)
+                    v_max = float(vals.max()) if float(vals.max()) > 0 else 1.0
+
+                    # Map styling: dark theme without needing tokens
+                    fig_map_rose = px.scatter_mapbox(
+                        lat=[src_lat],
+                        lon=[src_lon],
+                        zoom=7,
+                        height=430,
+                        title=f"Downwind Impact Sectors (PM2.5) — {selected_city}"
+                    )
+                    fig_map_rose.update_layout(
+                        mapbox_style="carto-darkmatter",
+                        margin=dict(l=0, r=0, t=40, b=0)
+                    )
+
+                    # Draw 8 sectors (each 45° wide, centered on cardinal direction)
+                    # Sector radius scales with PM2.5 magnitude (shows "how much")
+                    base_km = 15       # minimum visible radius
+                    max_add_km = 85    # extra radius at max PM2.5
+
+                    for _, row in rose_data_ordered.iterrows():
+                        d = row["wind_cardinal"]
+                        if pd.isna(d):
+                            continue
+
+                        bearing_center = CARDINAL_TO_DEG.get(str(d))
+                        if bearing_center is None:
+                            continue
+
+                        pm25 = float(row["pm2_5"]) if pd.notna(row["pm2_5"]) else 0.0
+                        pm10 = float(row["pm10"]) if pd.notna(row["pm10"]) else 0.0
+
+                        # Scale radius by PM2.5
+                        radius_km = base_km + (pm25 / v_max) * max_add_km
+
+                        # Sector span: 45° bin => +/- 22.5°
+                        start_b = (bearing_center - 22.5) % 360
+                        end_b = (bearing_center + 22.5) % 360
+
+                        lats, lons = make_sector_polygon(src_lat, src_lon, start_b, end_b, radius_km, steps=18)
+
+                        # Opacity also reflects strength
+                        opacity = 0.15 + 0.45 * (pm25 / v_max)
+
+                        fig_map_rose.add_trace(
+                            dict(
+                                type="scattermapbox",
+                                lat=lats,
+                                lon=lons,
+                                mode="lines",
+                                fill="toself",
+                                name=f"{d}",
+                                hovertemplate=(
+                                    f"<b>{d}</b><br>"
+                                    f"PM2.5: {pm25:.0f}<br>"
+                                    f"PM10: {pm10:.0f}<br>"
+                                    f"Impact radius: {radius_km:.0f} km"
+                                    "<extra></extra>"
+                                ),
+                                line=dict(width=1),
+                                opacity=opacity,
+                            )
+                        )
+
+                    # Source marker on top
+                    fig_map_rose.add_trace(
+                        dict(
+                            type="scattermapbox",
+                            lat=[src_lat],
+                            lon=[src_lon],
+                            mode="markers",
+                            name="Selected District",
+                            marker=dict(size=12),
+                            hovertemplate=f"<b>{selected_city}</b><extra></extra>"
+                        )
+                    )
+
+                    # Optional: disable drag zoom if you want (consistent with your earlier UX choice)
+                    fig_map_rose.update_layout(dragmode=False)
+
+                    st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
+
 
                 # --- INFO NOTE ---
                 st.caption("""
                 **Role in Smog Analysis:** Identifies the "Source."
                 Long bars indicate which direction the pollution is blowing from (e.g., East = Cross-border crop burning; West = Local vehicular emissions).
                 """)
-
-                st.divider()
-                # ==========================================
-                # NEW: Inbound / Outbound District Influence
-                # ==========================================
-                st.subheader("District-to-District Wind Influence")
-
-                # Compute influence scores
-                inbound_scores, outbound_scores = compute_inbound_outbound(
-                    city_df, selected_city, half_angle=20, max_km=120
-                )
-
-                # ---- Graph 1: Inbound (Upwind influence to selected district) ----
-                if inbound_scores:
-                    in_df = (
-                        pd.DataFrame([{"district": k, "score": v} for k, v in inbound_scores.items()])
-                        .sort_values("score", ascending=False)
-                        .head(10)
-                    )
-                    fig_in = px.bar(
-                        in_df,
-                        x="score",
-                        y="district",
-                        orientation="h",
-                        title=f"Upwind Influence → {selected_city} (Top 10)"
-                    )
-                    fig_in.update_layout(yaxis={"categoryorder": "total ascending"}, dragmode=False)
-                    st.plotly_chart(fig_in, use_container_width=True, config=PLOTLY_CONFIG)
-                else:
-                    st.info("No inbound influence could be computed (missing coordinates or wind data).")
-
-                # ---- Graph 2: Outbound (Downwind impact from selected district) ----
-                if outbound_scores and selected_city in DISTRICT_CENTROIDS:
-                    out_df = (
-                        pd.DataFrame([{"district": k, "score": v} for k, v in outbound_scores.items()])
-                        .sort_values("score", ascending=False)
-                        .head(8)
-                    )
-                    src_lat, src_lon = DISTRICT_CENTROIDS[selected_city]
-                    out_df["lat"] = out_df["district"].apply(lambda d: DISTRICT_CENTROIDS.get(d, (None, None))[0])
-                    out_df["lon"] = out_df["district"].apply(lambda d: DISTRICT_CENTROIDS.get(d, (None, None))[1])
-                    out_df = out_df.dropna(subset=["lat", "lon"])
-
-                    fig_out_map = px.scatter_mapbox(
-                        out_df,
-                        lat="lat",
-                        lon="lon",
-                        size="score",
-                        hover_name="district",
-                        zoom=7,
-                        height=420,
-                        title=f"Downwind Impact from {selected_city} (Top 8)"
-                    )
-                    fig_out_map.update_layout(
-                        mapbox_style="open-street-map",
-                        margin=dict(l=0, r=0, t=35, b=0),
-                    )
-
-                    # Source marker
-                    fig_out_map.add_trace(
-                        dict(
-                            type="scattermapbox",
-                            lat=[src_lat],
-                            lon=[src_lon],
-                            mode="markers",
-                            name="Selected District (Source)",
-                            marker=dict(size=14),
-                        )
-                    )
-
-                    st.plotly_chart(fig_out_map, use_container_width=True, config=PLOTLY_CONFIG)
-                else:
-                    st.info("No outbound impact map could be computed (missing coordinates or wind data).")
 
             with st.expander(f"View Raw Data for {selected_city}"):
                 st.dataframe(city_df)
