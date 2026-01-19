@@ -150,9 +150,21 @@ with f1:
     st.markdown("**Select Time Range:**")
     time_option = st.selectbox(
         "Time Range",
-        ["Last 24 Hours", "Last 7 Days", "Last 30 Days", "Last 6 Months", "Last 1 Year", "Custom Range", "Specific Date"],
-        label_visibility="collapsed"
+        [
+            "Last 24 Hours",
+            "Last 7 Days",
+            "Last 30 Days",
+            "Last 6 Months",
+            "Last 1 Year",
+            "Custom Range",
+            "Specific Date",
+        ],
+        label_visibility="collapsed",
+        key="time_option",
     )
+
+    # This placeholder makes the “new box” appear in the same place, seamlessly
+    time_detail = st.container()
 
 # --- TIME LOGIC ---
 end_date = datetime.now()
@@ -160,22 +172,41 @@ start_date = end_date - timedelta(hours=24)
 
 if time_option == "Last 7 Days":
     start_date = end_date - timedelta(days=7)
+
 elif time_option == "Last 30 Days":
     start_date = end_date - timedelta(days=30)
+
 elif time_option == "Last 6 Months":
     start_date = end_date - timedelta(days=180)
+
 elif time_option == "Last 1 Year":
     start_date = end_date - timedelta(days=365)
+
 elif time_option == "Custom Range":
-    with f2:
+    # “New box” appears under the dropdown seamlessly
+    with time_detail:
         c_col1, c_col2 = st.columns(2)
-        c_start = c_col1.date_input("Start Date", value=end_date - timedelta(days=7))
-        c_end = c_col2.date_input("End Date", value=end_date)
+        c_start = c_col1.date_input(
+            "Start Date",
+            value=(end_date - timedelta(days=7)).date(),
+            key="custom_start_date",
+        )
+        c_end = c_col2.date_input(
+            "End Date",
+            value=end_date.date(),
+            key="custom_end_date",
+        )
         start_date = datetime.combine(c_start, datetime.min.time())
         end_date = datetime.combine(c_end, datetime.max.time())
+
 elif time_option == "Specific Date":
-    with f2:
-        spec_date = st.date_input("Select Date", value=end_date)
+    # “New box” appears under the dropdown seamlessly
+    with time_detail:
+        spec_date = st.date_input(
+            "Select Date",
+            value=end_date.date(),
+            key="specific_date",
+        )
         start_date = datetime.combine(spec_date, datetime.min.time())
         end_date = datetime.combine(spec_date, datetime.max.time())
 
@@ -282,8 +313,36 @@ try:
         d_col1, d_col2 = st.columns([1, 3])
         with d_col1:
             st.markdown("**Select District to Analyze:**")
-            districts = sorted(df['district'].unique())
-            selected_city = st.selectbox("District", districts, label_visibility="collapsed")
+            districts = sorted(df["district"].unique())
+
+            # PM2.5 snapshot at the latest timestamp (used to annotate dropdown labels)
+            pm25_by_district = (
+                latest_df.groupby("district")["pm2_5"].mean().to_dict()
+            )
+
+            # Most polluted district right now (already computed as worst_row above)
+            worst_district = str(worst_row["district"])
+
+            # Default selection logic:
+            # - On first load, default to worst_district
+            # - On later reruns, keep user selection unless it becomes invalid
+            if "selected_city" not in st.session_state or st.session_state["selected_city"] not in districts:
+                st.session_state["selected_city"] = worst_district if worst_district in districts else districts[0]
+
+            def district_label(d):
+                v = pm25_by_district.get(d, None)
+                if v is None or pd.isna(v):
+                    return f"{d}  —  PM2.5: —"
+                return f"{d}  —  PM2.5: {v:.0f}"
+
+            selected_city = st.selectbox(
+                "District",
+                options=districts,
+                index=districts.index(st.session_state["selected_city"]),
+                format_func=district_label,
+                label_visibility="collapsed",
+                key="selected_city",
+            )
 
         city_df = df[df['district'] == selected_city]
 
