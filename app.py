@@ -310,39 +310,38 @@ try:
         # ==========================================
         st.header("Smog Diagnostics")
 
-        d_col1, d_col2 = st.columns([1, 3])
-        with d_col1:
-            st.markdown("**Select District to Analyze:**")
-            districts = sorted(df["district"].unique())
+        # --- District selector (default = most polluted, show PM2.5 inline) ---
 
-            # PM2.5 snapshot at the latest timestamp (used to annotate dropdown labels)
-            pm25_by_district = (
-                latest_df.groupby("district")["pm2_5"].mean().to_dict()
-            )
+        # Build a latest-snapshot PM2.5 map (use mean in case duplicates exist)
+        pm25_by_district = (
+            latest_df.groupby("district")["pm2_5"].mean().to_dict()
+        )
 
-            # Most polluted district right now (already computed as worst_row above)
-            worst_district = str(worst_row["district"])
+        # Sort districts by current PM2.5 (highest first) to feel “correct”
+        districts = sorted(pm25_by_district.keys(), key=lambda d: pm25_by_district.get(d, -1), reverse=True)
 
-            # Default selection logic:
-            # - On first load, default to worst_district
-            # - On later reruns, keep user selection unless it becomes invalid
-            if "selected_city" not in st.session_state or st.session_state["selected_city"] not in districts:
-                st.session_state["selected_city"] = worst_district if worst_district in districts else districts[0]
+        # Most polluted district right now
+        worst_district = str(worst_row["district"])
 
-            def district_label(d):
-                v = pm25_by_district.get(d, None)
-                if v is None or pd.isna(v):
-                    return f"{d}  —  PM2.5: —"
-                return f"{d}  —  PM2.5: {v:.0f}"
+        # Default selection logic (persist on reruns, but first load = worst)
+        if "selected_city" not in st.session_state or st.session_state["selected_city"] not in districts:
+            st.session_state["selected_city"] = worst_district if worst_district in districts else districts[0]
 
-            selected_city = st.selectbox(
-                "District",
-                options=districts,
-                index=districts.index(st.session_state["selected_city"]),
-                format_func=district_label,
-                label_visibility="collapsed",
-                key="selected_city",
-            )
+        def district_label(d: str) -> str:
+            v = pm25_by_district.get(d)
+            if v is None or pd.isna(v):
+                return f"{d}    ↑ — PM2.5"
+            # This matches the “↑ 699 PM2.5” style on one line
+            return f"{d}    ↑ {v:.0f} PM2.5"
+
+        selected_city = st.selectbox(
+            "District",
+            options=districts,  # underlying values remain clean district names
+            index=districts.index(st.session_state["selected_city"]),
+            format_func=district_label,  # what user sees in dropdown
+            label_visibility="collapsed",
+            key="selected_city",
+        )
 
         city_df = df[df['district'] == selected_city]
 
