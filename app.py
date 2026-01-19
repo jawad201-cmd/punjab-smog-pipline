@@ -103,6 +103,24 @@ def inject_global_ux_css():
         hr {
             opacity: 0.45;
         }
+
+        /* --- Cursor fix: selectboxes should not show I-beam --- */
+        div[data-testid="stSelectbox"] * {
+        cursor: pointer !important;
+        }
+
+        /* Keep text cursor only where typing is expected */
+        div[data-testid="stTextInput"] input,
+        div[data-testid="stTextArea"] textarea,
+        div[data-testid="stNumberInput"] input {
+        cursor: text !important;
+        }
+
+        /* Dropdown list items should also be pointer */
+        div[role="listbox"] * {
+        cursor: pointer !important;
+        }
+
         </style>
         """,
         unsafe_allow_html=True,
