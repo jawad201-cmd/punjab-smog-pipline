@@ -4,12 +4,11 @@ from sqlalchemy import create_engine, text
 import plotly.express as px
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
+import math
+from locations import DISTRICTS
 
-# PLOTLY_CONFIG = {
-#     "displayModeBar": True,
-#     "displaylogo": False,
-#     "modeBarButtons": [["toImage"]],  # only “Save image”
-# }
+DISTRICT_CENTROIDS = {k: (v["lat"], v["lon"]) for k, v in DISTRICTS.items()}
+
 PLOTLY_CONFIG = {
     "displayModeBar": True,
     "displaylogo": False,
@@ -147,6 +146,43 @@ def persist_scroll_position_across_reruns():
 
 inject_global_ux_css()
 persist_scroll_position_across_reruns()
+
+# Core geometry helpers (bearing + distance + cone test)
+def haversine_km(lat1, lon1, lat2, lon2):
+    R = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
+    return 2*R*math.asin(math.sqrt(a))
+
+def bearing_deg(lat1, lon1, lat2, lon2):
+    # bearing from point 1 to point 2
+    y = math.sin(math.radians(lon2-lon1)) * math.cos(math.radians(lat2))
+    x = math.cos(math.radians(lat1))*math.sin(math.radians(lat2)) - math.sin(math.radians(lat1))*math.cos(math.radians(lat2))*math.cos(math.radians(lon2-lon1))
+    b = math.degrees(math.atan2(y, x))
+    return (b + 360) % 360
+
+def ang_diff(a, b):
+    d = abs(a - b) % 360
+    return min(d, 360 - d)
+
+def districts_in_cone(src_name, center_bearing, half_angle=20, max_km=120):
+    src = DISTRICT_CENTROIDS.get(src_name)
+    if not src:
+        return []
+    lat1, lon1 = src
+    hits = []
+    for name, (lat2, lon2) in DISTRICT_CENTROIDS.items():
+        if name == src_name:
+            continue
+        d = haversine_km(lat1, lon1, lat2, lon2)
+        if d > max_km:
+            continue
+        b = bearing_deg(lat1, lon1, lat2, lon2)  # direction from src -> target
+        if ang_diff(b, center_bearing) <= half_angle:
+            hits.append((name, d))
+    return hits  # (district, distance_km)
 
 # --- HEADER ---
 st.title("Punjab Smog Intelligence Platform")
@@ -350,8 +386,8 @@ try:
             def district_label(d):
                 v = pm25_by_district.get(d, None)
                 if v is None or pd.isna(v):
-                    return f"{d}   (PM2.5: —)"
-                return f"{d}   (PM2.5: {v:.0f})"
+                    return f"{d}   (PM2.5 - NULL)"
+                return f"{d}   (PM2.5 - {v:.0f})"
 
             selected_city = st.selectbox(
                 "District",
@@ -363,6 +399,35 @@ try:
             )
 
         city_df = df[df['district'] == selected_city]
+
+        # Compute inbound/outbound scores for selected district
+        def compute_inbound_outbound(city_df, selected_city, half_angle=20, max_km=120):
+            inbound = {}
+            outbound = {}
+
+            # Only use rows where wind_dir + pm2_5 exist
+            dfv = city_df.dropna(subset=["wind_dir", "pm2_5"]).copy()
+
+            for _, r in dfv.iterrows():
+                wdir = float(r["wind_dir"]) % 360
+                pm = float(r["pm2_5"])
+
+                # inbound: air came FROM upwind direction
+                upwind = (wdir + 180) % 360
+                sources = districts_in_cone(selected_city, upwind, half_angle=half_angle, max_km=max_km)
+                for src_name, dist_km in sources:
+                    weight = 1.0 / max(1.0, dist_km)  # closer gets more weight
+                    inbound[src_name] = inbound.get(src_name, 0.0) + pm * weight
+
+                # outbound: air goes TO downwind direction
+                targets = districts_in_cone(selected_city, wdir, half_angle=half_angle, max_km=max_km)
+                for tgt_name, dist_km in targets:
+                    weight = 1.0 / max(1.0, dist_km)
+                    outbound[tgt_name] = outbound.get(tgt_name, 0.0) + pm * weight
+
+            return inbound, outbound
+
+        inbound_scores, outbound_scores = compute_inbound_outbound(city_df, selected_city, half_angle=20, max_km=120)
 
         if not city_df.empty:
             g1, g2 = st.columns(2)
@@ -405,6 +470,79 @@ try:
                 **Role in Smog Analysis:** Identifies the "Source."
                 Long bars indicate which direction the pollution is blowing from (e.g., East = Cross-border crop burning; West = Local vehicular emissions).
                 """)
+
+                st.divider()
+                # ==========================================
+                # NEW: Inbound / Outbound District Influence
+                # ==========================================
+                st.subheader("District-to-District Wind Influence")
+
+                # Compute influence scores
+                inbound_scores, outbound_scores = compute_inbound_outbound(
+                    city_df, selected_city, half_angle=20, max_km=120
+                )
+
+                # ---- Graph 1: Inbound (Upwind influence to selected district) ----
+                if inbound_scores:
+                    in_df = (
+                        pd.DataFrame([{"district": k, "score": v} for k, v in inbound_scores.items()])
+                        .sort_values("score", ascending=False)
+                        .head(10)
+                    )
+                    fig_in = px.bar(
+                        in_df,
+                        x="score",
+                        y="district",
+                        orientation="h",
+                        title=f"Upwind Influence → {selected_city} (Top 10)"
+                    )
+                    fig_in.update_layout(yaxis={"categoryorder": "total ascending"}, dragmode=False)
+                    st.plotly_chart(fig_in, use_container_width=True, config=PLOTLY_CONFIG)
+                else:
+                    st.info("No inbound influence could be computed (missing coordinates or wind data).")
+
+                # ---- Graph 2: Outbound (Downwind impact from selected district) ----
+                if outbound_scores and selected_city in DISTRICT_CENTROIDS:
+                    out_df = (
+                        pd.DataFrame([{"district": k, "score": v} for k, v in outbound_scores.items()])
+                        .sort_values("score", ascending=False)
+                        .head(8)
+                    )
+                    src_lat, src_lon = DISTRICT_CENTROIDS[selected_city]
+                    out_df["lat"] = out_df["district"].apply(lambda d: DISTRICT_CENTROIDS.get(d, (None, None))[0])
+                    out_df["lon"] = out_df["district"].apply(lambda d: DISTRICT_CENTROIDS.get(d, (None, None))[1])
+                    out_df = out_df.dropna(subset=["lat", "lon"])
+
+                    fig_out_map = px.scatter_mapbox(
+                        out_df,
+                        lat="lat",
+                        lon="lon",
+                        size="score",
+                        hover_name="district",
+                        zoom=7,
+                        height=420,
+                        title=f"Downwind Impact from {selected_city} (Top 8)"
+                    )
+                    fig_out_map.update_layout(
+                        mapbox_style="open-street-map",
+                        margin=dict(l=0, r=0, t=35, b=0),
+                    )
+
+                    # Source marker
+                    fig_out_map.add_trace(
+                        dict(
+                            type="scattermapbox",
+                            lat=[src_lat],
+                            lon=[src_lon],
+                            mode="markers",
+                            name="Selected District (Source)",
+                            marker=dict(size=14),
+                        )
+                    )
+
+                    st.plotly_chart(fig_out_map, use_container_width=True, config=PLOTLY_CONFIG)
+                else:
+                    st.info("No outbound impact map could be computed (missing coordinates or wind data).")
 
             with st.expander(f"View Raw Data for {selected_city}"):
                 st.dataframe(city_df)
