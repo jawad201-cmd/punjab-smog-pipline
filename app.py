@@ -350,8 +350,8 @@ try:
             def district_label(d):
                 v = pm25_by_district.get(d, None)
                 if v is None or pd.isna(v):
-                    return f"{d}  —  PM2.5: —"
-                return f"{d}  —  PM2.5: {v:.0f}"
+                    return f"{d}   (PM2.5: —)"
+                return f"{d}   (PM2.5: {v:.0f})"
 
             selected_city = st.selectbox(
                 "District",
