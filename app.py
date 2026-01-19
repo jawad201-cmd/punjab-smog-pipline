@@ -592,106 +592,36 @@ try:
                         )
                     )
 
-                    # ----------------------------
-                    # Compass overlay (clean, aligned, fully in-frame)
-                    # Replace your existing compass block with this one.
-                    # Put AFTER fig_map_rose.update_layout(...) and BEFORE st.plotly_chart(...)
-                    # ----------------------------
+                    # --- Direction labels on the map-wind-rose (no compass) ---
+                    dir_order = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
-                    # Top-right placement (paper coords). Adjust only these 4 numbers if you want.
-                    box = dict(x0=0.80, y0=0.08, x1=0.93, y1=0.25)
+                    label_lats = []
+                    label_lons = []
+                    label_text = []
 
-                    # Compute center + padding so everything stays inside the box
-                    cx = (box["x0"] + box["x1"]) / 2
-                    cy = (box["y0"] + box["y1"]) / 2
-                    pad = 0.012
+                    # place labels at a fixed radius so they sit cleanly on the wedges
+                    label_radius_km = base_km + max_add_km + 8  # slightly outside the longest sector
 
-                    # Line extents inside the box
-                    vx0, vy0 = cx, box["y0"] + pad
-                    vx1, vy1 = cx, box["y1"] - pad
+                    for d in dir_order:
+                        b = CARDINAL_TO_DEG.get(d)
+                        if b is None:
+                            continue
+                        latp, lonp = destination_point(src_lat, src_lon, b, label_radius_km)
+                        label_lats.append(latp)
+                        label_lons.append(lonp)
+                        label_text.append(d)
 
-                    hx0, hy0 = box["x0"] + pad, cy
-                    hx1, hy1 = box["x1"] - pad, cy
-
-                    # North arrow segment length
-                    arrow_len = 0.018
-
-                    fig_map_rose.update_layout(
-                        shapes=[
-                            # Background box
-                            dict(
-                                type="rect",
-                                xref="paper", yref="paper",
-                                x0=box["x0"], y0=box["y0"], x1=box["x1"], y1=box["y1"],
-                                line=dict(color="rgba(255,255,255,0.22)", width=1),
-                                fillcolor="rgba(0,0,0,0.40)",
-                                layer="above",
-                            ),
-
-                            # Vertical line (N-S)
-                            dict(
-                                type="line",
-                                xref="paper", yref="paper",
-                                x0=vx0, y0=vy0, x1=vx1, y1=vy1,
-                                line=dict(color="rgba(255,255,255,0.90)", width=2),
-                                layer="above",
-                            ),
-
-                            # Horizontal line (W-E)
-                            dict(
-                                type="line",
-                                xref="paper", yref="paper",
-                                x0=hx0, y0=hy0, x1=hx1, y1=hy1,
-                                line=dict(color="rgba(255,255,255,0.90)", width=2),
-                                layer="above",
-                            ),
-
-                            # North arrow (short thick segment at the top)
-                            dict(
-                                type="line",
-                                xref="paper", yref="paper",
-                                x0=cx, y0=vy1 - arrow_len, x1=cx, y1=vy1,
-                                line=dict(color="rgba(255,255,255,0.98)", width=4),
-                                layer="above",
-                            ),
-                        ],
-                        annotations=[
-                            # N (above the box, centered) — keeps it readable and aligned
-                            dict(
-                                xref="paper", yref="paper",
-                                x=cx, y=box["y1"] + 0.02,
-                                text="<b>N</b>",
-                                showarrow=False,
-                                font=dict(color="rgba(255,255,255,0.96)", size=12),
-                            ),
-
-                            # S (inside the box, bottom-center)
-                            dict(
-                                xref="paper", yref="paper",
-                                x=cx, y=box["y0"] + 0.01,
-                                text="S",
-                                showarrow=False,
-                                font=dict(color="rgba(255,255,255,0.78)", size=10),
-                            ),
-
-                            # E (inside the box, right-center)
-                            dict(
-                                xref="paper", yref="paper",
-                                x=box["x1"] - 0.01, y=cy,
-                                text="E",
-                                showarrow=False,
-                                font=dict(color="rgba(255,255,255,0.78)", size=10),
-                            ),
-
-                            # W (inside the box, left-center)
-                            dict(
-                                xref="paper", yref="paper",
-                                x=box["x0"] + 0.01, y=cy,
-                                text="W",
-                                showarrow=False,
-                                font=dict(color="rgba(255,255,255,0.78)", size=10),
-                            ),
-                        ],
+                    fig_map_rose.add_trace(
+                        dict(
+                            type="scattermapbox",
+                            lat=label_lats,
+                            lon=label_lons,
+                            mode="text",
+                            text=label_text,
+                            textfont=dict(size=12, color="rgba(255,255,255,0.95)"),
+                            showlegend=False,
+                            hoverinfo="skip",
+                        )
                     )
 
                     st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
