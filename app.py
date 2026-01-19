@@ -446,7 +446,7 @@ try:
 
             with g1:
                 st.markdown(f"**Wind Impact ({selected_city})**")
-                
+
                 # Plot both PM2.5 and PM10 against wind_speed on the same Y-axis scale
                 scatter_df = (
                     city_df[["wind_speed", "pm2_5", "pm10"]]
@@ -471,6 +471,7 @@ try:
                     title=f"Wind Speed vs PM2.5 / PM10 in {selected_city}",
                     labels={"wind_speed": "Wind Speed", "Concentration": "Concentration (µg/m³)", "Pollutant": ""},
                 )
+                fig_scatter.update_traces(marker=dict(size=10))
 
                 st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
 
