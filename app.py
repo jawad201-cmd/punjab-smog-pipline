@@ -5,10 +5,17 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 
+# PLOTLY_CONFIG = {
+#     "displayModeBar": True,
+#     "displaylogo": False,
+#     "modeBarButtons": [["toImage"]],  # only “Save image”
+# }
 PLOTLY_CONFIG = {
     "displayModeBar": True,
     "displaylogo": False,
-    "modeBarButtons": [["toImage"]],  # only “Save image”
+    "modeBarButtons": [["toImage", "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"]],
+    "scrollZoom": True,
+    "doubleClick": "reset",  # double-click resets zoom
 }
 
 # --- PAGE CONFIG ---
