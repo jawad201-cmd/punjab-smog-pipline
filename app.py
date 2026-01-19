@@ -484,16 +484,18 @@ try:
                         title=f"Downwind Impact Sectors — {selected_city}"
                     )
                     fig_map_rose.update_layout(
-                        mapbox_style="white-bg",
-                        mapbox_layers=[
-                            {
-                                "below": "traces",
-                                "sourcetype": "raster",
-                                "source": ["https://basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"],
-                                "attribution": "© OpenStreetMap © CARTO",
-                            }
-                        ],
-                        margin=dict(l=0, r=0, t=45, b=0),
+
+                    mapbox_style="white-bg",
+                    mapbox_layers=[
+                        {
+                            "below": "traces",
+                            "sourcetype": "raster",
+                            "source": ["https://basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"],
+                            "sourceattribution": "© OpenStreetMap © CARTO",
+                        }
+                    ],
+                    margin=dict(l=0, r=0, t=45, b=0),
+
                         paper_bgcolor="rgba(0,0,0,0)",
                         font=dict(color="rgba(255,255,255,0.92)"),
                         title_font=dict(color="rgba(255,255,255,0.96)"),
