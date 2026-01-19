@@ -618,7 +618,7 @@ try:
                             lon=label_lons,
                             mode="text",
                             text=label_text,
-                            textfont=dict(size=12, color="rgba(255,75,75,1.0)"),
+                            textfont=dict(size=18, color="rgba(255,255,255,1.0)"),
                             showlegend=False,
                             hoverinfo="skip",
                         )
