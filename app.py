@@ -593,53 +593,88 @@ try:
                     )
 
                     # ----------------------------
-                    # Small Compass (fully in-frame)
+                    # Small Compass (fully in-frame, clean, high-contrast)
+                    # Put this AFTER you create fig_map_rose and BEFORE st.plotly_chart(...)
                     # ----------------------------
+
+                    # Place compass safely inside the map frame (top-right)
+                    # Paper coords: (0,0) bottom-left, (1,1) top-right
+                    comp_x0, comp_y0 = 0.82, 0.08
+                    comp_x1, comp_y1 = 0.94, 0.24
+                    cx, cy = 0.88, 0.16  # center of compass
+
                     fig_map_rose.update_layout(
                         shapes=[
-                            # Compass background box
+                            # Background box
                             dict(
                                 type="rect",
                                 xref="paper", yref="paper",
-                                x0=0.82, y0=0.08, x1=0.94, y1=0.24,
+                                x0=comp_x0, y0=comp_y0, x1=comp_x1, y1=comp_y1,
                                 line=dict(color="rgba(255,255,255,0.22)", width=1),
                                 fillcolor="rgba(0,0,0,0.35)",
-                                layer="above"
+                                layer="above",
                             ),
-                            # vertical line
+
+                            # North-South line
                             dict(
                                 type="line",
                                 xref="paper", yref="paper",
-                                x0=0.88, y0=0.105, x1=0.88, y1=0.215,
+                                x0=cx, y0=cy - 0.055, x1=cx, y1=cy + 0.055,
                                 line=dict(color="rgba(255,255,255,0.88)", width=2),
-                                layer="above"
+                                layer="above",
                             ),
-                            # horizontal line
+
+                            # East-West line
                             dict(
                                 type="line",
                                 xref="paper", yref="paper",
-                                x0=0.845, y0=0.16, x1=0.915, y1=0.16,
+                                x0=cx - 0.045, y0=cy, x1=cx + 0.045, y1=cy,
                                 line=dict(color="rgba(255,255,255,0.88)", width=2),
-                                layer="above"
+                                layer="above",
                             ),
-                            # small north “arrow”
+
+                            # North arrow (short thicker segment at top)
                             dict(
                                 type="line",
                                 xref="paper", yref="paper",
-                                x0=0.88, y0=0.215, x1=0.88, y1=0.232,
+                                x0=cx, y0=cy + 0.055, x1=cx, y1=cy + 0.075,
                                 line=dict(color="rgba(255,255,255,0.96)", width=3),
-                                layer="above"
+                                layer="above",
                             ),
                         ],
                         annotations=[
-                            dict(xref="paper", yref="paper", x=0.88, y=0.235, text="N", showarrow=False,
-                                font=dict(color="rgba(255,255,255,0.96)", size=12)),
-                            dict(xref="paper", yref="paper", x=0.88, y=0.095, text="S", showarrow=False,
-                                font=dict(color="rgba(255,255,255,0.75)", size=10)),
-                            dict(xref="paper", yref="paper", x=0.922, y=0.16, text="E", showarrow=False,
-                                font=dict(color="rgba(255,255,255,0.75)", size=10)),
-                            dict(xref="paper", yref="paper", x=0.838, y=0.16, text="W", showarrow=False,
-                                font=dict(color="rgba(255,255,255,0.75)", size=10)),
+                            # N label
+                            dict(
+                                xref="paper", yref="paper",
+                                x=cx, y=cy + 0.085,
+                                text="<b>N</b>",
+                                showarrow=False,
+                                font=dict(color="rgba(255,255,255,0.96)", size=12),
+                            ),
+                            # S label
+                            dict(
+                                xref="paper", yref="paper",
+                                x=cx, y=cy - 0.075,
+                                text="S",
+                                showarrow=False,
+                                font=dict(color="rgba(255,255,255,0.75)", size=10),
+                            ),
+                            # E label
+                            dict(
+                                xref="paper", yref="paper",
+                                x=cx + 0.06, y=cy,
+                                text="E",
+                                showarrow=False,
+                                font=dict(color="rgba(255,255,255,0.75)", size=10),
+                            ),
+                            # W label
+                            dict(
+                                xref="paper", yref="paper",
+                                x=cx - 0.06, y=cy,
+                                text="W",
+                                showarrow=False,
+                                font=dict(color="rgba(255,255,255,0.75)", size=10),
+                            ),
                         ],
                     )
 
