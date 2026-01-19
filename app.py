@@ -159,6 +159,17 @@ def inject_global_ux_css():
         cursor: pointer !important;
         }
 
+        div[data-testid="stPlotlyChart"],
+        div[data-testid="stPlotlyChart"] > div,
+        div[data-testid="stPlotlyChart"] .js-plotly-plot,
+        div[data-testid="stPlotlyChart"] .plot-container,
+        div[data-testid="stPlotlyChart"] .svg-container,
+        div[data-testid="stPlotlyChart"] .main-svg,
+        div[data-testid="stPlotlyChart"] canvas {
+        border-radius: 16px !important;
+        overflow: hidden !important;
+        }
+       
         </style>
         """,
         unsafe_allow_html=True,
@@ -480,14 +491,12 @@ try:
                         title_font=dict(color="rgba(255,255,255,0.96)"),
                         legend=dict(
                             orientation="h",
-                            yanchor="top",
-                            y=1.02,
-                            xanchor="left",
-                            x=0.0,
-                            bgcolor="rgba(0,0,0,0.35)",
-                            bordercolor="rgba(255,255,255,0.22)",
+                            x=0.02, y=0.98,              # inside the frame
+                            xanchor="left", yanchor="top",
+                            bgcolor="rgba(0,0,0,0.45)",
+                            bordercolor="rgba(255,255,255,0.24)",
                             borderwidth=1,
-                            font=dict(color="rgba(255,255,255,0.92)"),
+                            font=dict(color="rgba(255,255,255,0.95)"),
                         ),
                         dragmode=False,  # consistent with your “no zoom/crop” preference
                     )
@@ -539,7 +548,7 @@ try:
                                     f"<b>Radius</b>: {r10:.0f} km"
                                     "<extra></extra>"
                                 ),
-                                line=dict(width=2, color="rgba(255,165,0,0.95)"),  # high-contrast boundary
+                                line=dict(width=2, color="rgba(255,165,0,1.0)"),  # high-contrast boundary
                                 fillcolor="rgba(255,165,0,0.18)",
                             )
                         )
@@ -563,7 +572,7 @@ try:
                                     f"<b>Radius</b>: {r25:.0f} km"
                                     "<extra></extra>"
                                 ),
-                                line=dict(width=2, color="rgba(255,75,75,0.95)"),
+                                line=dict(width=2, color="rgba(255,75,75,1.0)"),
                                 fillcolor="rgba(255,75,75,0.22)",
                             )
                         )
@@ -584,29 +593,52 @@ try:
                     )
 
                     # ----------------------------
-                    # Small Compass (paper coords) — no direction labels in legend
+                    # Small Compass (fully in-frame)
                     # ----------------------------
-                    # Draw a minimal compass in the top-right corner using shapes + annotations
                     fig_map_rose.update_layout(
                         shapes=[
+                            # Compass background box
+                            dict(
+                                type="rect",
+                                xref="paper", yref="paper",
+                                x0=0.82, y0=0.08, x1=0.94, y1=0.24,
+                                line=dict(color="rgba(255,255,255,0.22)", width=1),
+                                fillcolor="rgba(0,0,0,0.35)",
+                                layer="above"
+                            ),
                             # vertical line
-                            dict(type="line", xref="paper", yref="paper", x0=0.94, y0=0.12, x1=0.94, y1=0.24,
-                                line=dict(color="rgba(255,255,255,0.85)", width=2)),
+                            dict(
+                                type="line",
+                                xref="paper", yref="paper",
+                                x0=0.88, y0=0.105, x1=0.88, y1=0.215,
+                                line=dict(color="rgba(255,255,255,0.88)", width=2),
+                                layer="above"
+                            ),
                             # horizontal line
-                            dict(type="line", xref="paper", yref="paper", x0=0.88, y0=0.18, x1=1.00, y1=0.18,
-                                line=dict(color="rgba(255,255,255,0.85)", width=2)),
-                            # arrow (north)
-                            dict(type="line", xref="paper", yref="paper", x0=0.94, y0=0.24, x1=0.94, y1=0.27,
-                                line=dict(color="rgba(255,255,255,0.95)", width=3)),
+                            dict(
+                                type="line",
+                                xref="paper", yref="paper",
+                                x0=0.845, y0=0.16, x1=0.915, y1=0.16,
+                                line=dict(color="rgba(255,255,255,0.88)", width=2),
+                                layer="above"
+                            ),
+                            # small north “arrow”
+                            dict(
+                                type="line",
+                                xref="paper", yref="paper",
+                                x0=0.88, y0=0.215, x1=0.88, y1=0.232,
+                                line=dict(color="rgba(255,255,255,0.96)", width=3),
+                                layer="above"
+                            ),
                         ],
                         annotations=[
-                            dict(xref="paper", yref="paper", x=0.94, y=0.285, text="<b>N</b>", showarrow=False,
-                                font=dict(color="rgba(255,255,255,0.95)", size=12)),
-                            dict(xref="paper", yref="paper", x=0.94, y=0.10, text="S", showarrow=False,
+                            dict(xref="paper", yref="paper", x=0.88, y=0.235, text="<b>N</b>", showarrow=False,
+                                font=dict(color="rgba(255,255,255,0.96)", size=12)),
+                            dict(xref="paper", yref="paper", x=0.88, y=0.095, text="S", showarrow=False,
                                 font=dict(color="rgba(255,255,255,0.75)", size=10)),
-                            dict(xref="paper", yref="paper", x=1.01, y=0.18, text="E", showarrow=False,
+                            dict(xref="paper", yref="paper", x=0.922, y=0.16, text="E", showarrow=False,
                                 font=dict(color="rgba(255,255,255,0.75)", size=10)),
-                            dict(xref="paper", yref="paper", x=0.87, y=0.18, text="W", showarrow=False,
+                            dict(xref="paper", yref="paper", x=0.838, y=0.16, text="W", showarrow=False,
                                 font=dict(color="rgba(255,255,255,0.75)", size=10)),
                         ],
                     )
