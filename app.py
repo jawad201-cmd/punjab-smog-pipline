@@ -5,6 +5,12 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 
+PLOTLY_CONFIG = {
+    "displayModeBar": True,
+    "displaylogo": False,
+    "modeBarButtons": [["toImage"]],  # only “Save image”
+}
+
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Punjab Smog Intelligence", page_icon="🌫️", layout="wide")
 
@@ -227,7 +233,7 @@ try:
                 text='pm2_5'
             )
             fig_bar.update_layout(yaxis={'categoryorder': 'total ascending'})
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.plotly_chart(fig_bar, use_container_width=True, config=PLOTLY_CONFIG)
 
             # --- INFO NOTE ---
             st.caption("""
@@ -251,7 +257,7 @@ try:
                 markers=True,
                 title=f"Comparison: Major Cities + {', '.join(top_2)}"
             )
-            st.plotly_chart(fig_line, use_container_width=True)
+            st.plotly_chart(fig_line, use_container_width=True, config=PLOTLY_CONFIG)
 
             # --- INFO NOTE ---
             st.caption("""
@@ -287,7 +293,7 @@ try:
                     trendline="ols",
                     title=f"Wind Speed vs PM2.5 in {selected_city}"
                 )
-                st.plotly_chart(fig_scatter, use_container_width=True)
+                st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
 
                 # --- INFO NOTE ---
                 st.caption("""
@@ -308,7 +314,7 @@ try:
                     color_discrete_map={"pm2_5": "#FF4B4B", "pm10": "#FFA500"},
                     title=f"Avg Pollution by Wind Direction"
                 )
-                st.plotly_chart(fig_rose, use_container_width=True)
+                st.plotly_chart(fig_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
                 # --- INFO NOTE ---
                 st.caption("""
