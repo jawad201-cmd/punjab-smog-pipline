@@ -333,7 +333,7 @@ try:
             # Keep district order strictly by PM2.5 (descending)
             top_10["district"] = pd.Categorical(
                 top_10["district"],
-                categories=top_10.sort_values("pm2_5", ascending=False)["district"].tolist(),
+                categories=top_10.sort_values("pm2_5", ascending=True)["district"].tolist(),
                 ordered=True,
             )
 
