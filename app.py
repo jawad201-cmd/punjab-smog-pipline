@@ -357,7 +357,7 @@ try:
                     name="PM10",
                     marker=dict(color="#FFA500"),
                     opacity=0.35,          # overlay effect
-                    width=0.55,            # slightly thinner so PM2.5 remains dominant visually
+                    # width=0.55,            # slightly thinner so PM2.5 remains dominant visually
                     text=top_10["pm10"].round(0).astype(int),
                     textposition="none",   # keep clean; optional: "outside" if you want both labels
                 )
