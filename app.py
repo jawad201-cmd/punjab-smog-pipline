@@ -625,61 +625,71 @@ try:
                     )
 
                     # ----------------------------
-                    # District labels on map (bold-like via shadow + foreground)
+                    # District labels (high-contrast, bold-like) — ADD THIS LAST
                     # ----------------------------
+                    src_lat, src_lon = DISTRICT_CENTROIDS[selected_city]
 
-                    # Limit labels to districts near the selected city to avoid clutter
-                    LABEL_RADIUS_KM = 220  # adjust up/down if you want more/less labels
+                    # Show selected + nearest N districts to avoid clutter
+                    def _haversine_km(lat1, lon1, lat2, lon2):
+                        import math
+                        R = 6371.0
+                        p1, p2 = math.radians(lat1), math.radians(lat2)
+                        dphi = math.radians(lat2 - lat1)
+                        dl = math.radians(lon2 - lon1)
+                        a = math.sin(dphi/2)**2 + math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2
+                        return 2*R*math.asin(math.sqrt(a))
 
-                    if selected_city in DISTRICT_CENTROIDS:
-                        src_lat, src_lon = DISTRICT_CENTROIDS[selected_city]
+                    nearest = []
+                    for name, (lat, lon) in DISTRICT_CENTROIDS.items():
+                        d = _haversine_km(src_lat, src_lon, lat, lon)
+                        nearest.append((d, name, lat, lon))
 
-                        label_names = []
-                        label_lats = []
-                        label_lons = []
+                    nearest.sort(key=lambda x: x[0])
 
-                        # If you already have haversine_km() in your file, use it.
-                        # Otherwise, keep LABEL_RADIUS_KM small.
-                        for name, (lat, lon) in DISTRICT_CENTROIDS.items():
-                            try:
-                                d_km = haversine_km(src_lat, src_lon, lat, lon)
-                            except Exception:
-                                d_km = 0  # fallback if haversine_km isn't present
+                    # Keep: selected district + next 12 nearest
+                    keep = []
+                    for d, name, lat, lon in nearest:
+                        if name == selected_city:
+                            keep.insert(0, (name, lat, lon))
+                        else:
+                            keep.append((name, lat, lon))
+                    keep = keep[:13]  # 1 (selected) + 12 nearest
 
-                            if name == selected_city or d_km <= LABEL_RADIUS_KM:
-                                label_names.append(name)
-                                label_lats.append(lat)
-                                label_lons.append(lon)
+                    names = [x[0] for x in keep]
+                    lats  = [x[1] for x in keep]
+                    lons  = [x[2] for x in keep]
 
-                        # Shadow (gives bold/contrast effect)
-                        fig_map_rose.add_trace(
-                            dict(
-                                type="scattermapbox",
-                                lat=label_lats,
-                                lon=label_lons,
-                                mode="text",
-                                text=label_names,
-                                textfont=dict(size=13, color="rgba(0,0,0,0.85)"),
-                                textposition="top center",
-                                showlegend=False,
-                                hoverinfo="skip",
-                            )
+                    # Shadow layer (creates "bold" effect)
+                    fig_map_rose.add_trace(
+                        dict(
+                            type="scattermapbox",
+                            lat=lats,
+                            lon=lons,
+                            mode="markers+text",
+                            text=names,
+                            textposition="top center",
+                            textfont=dict(size=13, color="rgba(0,0,0,0.95)"),
+                            marker=dict(size=2, color="rgba(0,0,0,0.01)"),  # invisible anchor
+                            showlegend=False,
+                            hoverinfo="skip",
                         )
+                    )
 
-                        # Foreground text (main label)
-                        fig_map_rose.add_trace(
-                            dict(
-                                type="scattermapbox",
-                                lat=label_lats,
-                                lon=label_lons,
-                                mode="text",
-                                text=label_names,
-                                textfont=dict(size=12, color="rgba(255,255,255,0.95)"),
-                                textposition="top center",
-                                showlegend=False,
-                                hoverinfo="skip",
-                            )
+                    # Foreground layer (main readable label)
+                    fig_map_rose.add_trace(
+                        dict(
+                            type="scattermapbox",
+                            lat=lats,
+                            lon=lons,
+                            mode="markers+text",
+                            text=names,
+                            textposition="top center",
+                            textfont=dict(size=12, color="rgba(255,255,255,0.98)"),
+                            marker=dict(size=2, color="rgba(255,255,255,0.01)"),  # invisible anchor
+                            showlegend=False,
+                            hoverinfo="skip",
                         )
+                    )
 
                     st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
