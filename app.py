@@ -446,14 +446,32 @@ try:
 
             with g1:
                 st.markdown(f"**Wind Impact ({selected_city})**")
-                fig_scatter = px.scatter(
-                    city_df,
-                    x="wind_speed", y="pm2_5",
-                    color="pm2_5", color_continuous_scale="RdYlGn_r",
-                    size="pm10",
-                    trendline="ols",
-                    title=f"Wind Speed vs PM2.5 in {selected_city}"
+                
+                # Plot both PM2.5 and PM10 against wind_speed on the same Y-axis scale
+                scatter_df = (
+                    city_df[["wind_speed", "pm2_5", "pm10"]]
+                    .melt(
+                        id_vars="wind_speed",
+                        value_vars=["pm2_5", "pm10"],
+                        var_name="Pollutant",
+                        value_name="Concentration",
+                    )
+                    .dropna(subset=["wind_speed", "Concentration"])
                 )
+
+                fig_scatter = px.scatter(
+                    scatter_df,
+                    x="wind_speed",
+                    y="Concentration",
+                    color="Pollutant",
+                    symbol="Pollutant",
+                    trendline="ols",
+                    opacity=0.70,
+                    color_discrete_map={"pm2_5": "#FF4B4B", "pm10": "#FFA500"},
+                    title=f"Wind Speed vs PM2.5 / PM10 in {selected_city}",
+                    labels={"wind_speed": "Wind Speed", "Concentration": "Concentration (µg/m³)", "Pollutant": ""},
+                )
+
                 st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
 
                 # --- INFO NOTE ---
