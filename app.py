@@ -632,7 +632,7 @@ try:
                             ),
                         ],
                         annotations=[
-                            dict(xref="paper", yref="paper", x=0.88, y=0.235, text="<b>N</b>", showarrow=False,
+                            dict(xref="paper", yref="paper", x=0.88, y=0.235, text="N", showarrow=False,
                                 font=dict(color="rgba(255,255,255,0.96)", size=12)),
                             dict(xref="paper", yref="paper", x=0.88, y=0.095, text="S", showarrow=False,
                                 font=dict(color="rgba(255,255,255,0.75)", size=10)),
