@@ -3,9 +3,119 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 import plotly.express as px
 from datetime import datetime, timedelta
+import streamlit.components.v1 as components
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Punjab Smog Intelligence", page_icon="🌫️", layout="wide")
+
+# --- UX POLISH (Transitions + Seamless Reruns) ---
+def inject_global_ux_css():
+    st.markdown(
+        """
+        <style>
+        /* Smooth scrolling */
+        html { scroll-behavior: smooth; }
+
+        /* Subtle page fade-in on each rerun */
+        section.main > div {
+            animation: fadeIn 260ms ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Reduce visual jitter by keeping spacing consistent */
+        .block-container {
+            padding-top: 1.25rem !important;
+            padding-bottom: 2rem !important;
+        }
+
+        /* Metrics: card feel + hover */
+        div[data-testid="stMetric"] {
+            border: 1px solid rgba(49, 51, 63, 0.12);
+            border-radius: 12px;
+            padding: 12px 14px;
+            transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+        }
+        div[data-testid="stMetric"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+            border-color: rgba(49, 51, 63, 0.20);
+        }
+
+        /* Plotly charts: fade-in + gentle hover */
+        div[data-testid="stPlotlyChart"] {
+            border-radius: 12px;
+            overflow: hidden;
+            transition: transform 160ms ease, box-shadow 160ms ease;
+            animation: chartFade 260ms ease-out;
+        }
+        @keyframes chartFade {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        div[data-testid="stPlotlyChart"]:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+        }
+
+        /* Expanders: smoother open/close feel */
+        details[data-testid="stExpander"] {
+            border-radius: 12px;
+            border: 1px solid rgba(49, 51, 63, 0.12);
+            padding: 6px 10px;
+            transition: border-color 160ms ease, box-shadow 160ms ease;
+        }
+        details[data-testid="stExpander"]:hover {
+            border-color: rgba(49, 51, 63, 0.20);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+        }
+
+        /* Inputs: smoother focus */
+        div[data-testid="stSelectbox"] label,
+        div[data-testid="stDateInput"] label {
+            transition: opacity 160ms ease;
+        }
+        div[data-testid="stSelectbox"]:focus-within,
+        div[data-testid="stDateInput"]:focus-within {
+            animation: focusPop 140ms ease-out;
+        }
+        @keyframes focusPop {
+            from { transform: scale(0.997); }
+            to   { transform: scale(1.0); }
+        }
+
+        /* Dividers: soften */
+        hr {
+            opacity: 0.45;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+def persist_scroll_position_across_reruns():
+    components.html(
+        """
+        <script>
+        (function() {
+          const key = "psip_scrollY";
+          const y = Number(localStorage.getItem(key) || "0");
+          if (!Number.isNaN(y) && y > 0) {
+            setTimeout(() => window.scrollTo(0, y), 60);
+          }
+          window.addEventListener("beforeunload", () => {
+            localStorage.setItem(key, String(window.scrollY || 0));
+          });
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+inject_global_ux_css()
+persist_scroll_position_across_reruns()
 
 # --- HEADER ---
 st.title("Punjab Smog Intelligence Platform")
@@ -21,7 +131,7 @@ def get_db_connection():
 # ==========================================
 # 1. GLOBAL CONTROLS (Top of Page)
 # ==========================================
-f1, f2 = st.columns([1, 3]) 
+f1, f2 = st.columns([1, 3])
 
 with f1:
     st.markdown("**Select Time Range:**")
@@ -33,7 +143,7 @@ with f1:
 
 # --- TIME LOGIC ---
 end_date = datetime.now()
-start_date = end_date - timedelta(hours=24) 
+start_date = end_date - timedelta(hours=24)
 
 if time_option == "Last 7 Days":
     start_date = end_date - timedelta(days=7)
@@ -69,7 +179,8 @@ def load_data(start, end):
     return df
 
 def add_wind_cardinals(df):
-    if df.empty: return df
+    if df.empty: 
+        return df
     bins = [0, 45, 90, 135, 180, 225, 270, 315, 360]
     labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
     df['wind_cardinal'] = pd.cut(df['wind_dir'], bins=bins, labels=labels, include_lowest=True)
@@ -88,10 +199,10 @@ try:
         # ==========================================
         # PART 1: GLOBAL MONITORING
         # ==========================================
-        
+
         # --- TOP STATS ---
         worst_row = latest_df.loc[latest_df['pm2_5'].idxmax()]
-        
+
         m1, m2, m3, m4, m5 = st.columns(5)
         m1.metric("Most Polluted", f"{worst_row['district']}", f"{worst_row['pm2_5']:.0f} PM2.5", delta_color="inverse")
         m2.metric("Avg PM2.5", f"{latest_df['pm2_5'].mean():.0f} µg/m³")
@@ -107,17 +218,17 @@ try:
         with c1:
             st.subheader("Top 10 Polluted Districts")
             top_10 = latest_df.nlargest(10, 'pm2_5')
-            
+
             fig_bar = px.bar(
-                top_10, 
-                x='pm2_5', y='district', 
-                orientation='h', 
+                top_10,
+                x='pm2_5', y='district',
+                orientation='h',
                 color='pm2_5', color_continuous_scale='Reds',
                 text='pm2_5'
             )
-            fig_bar.update_layout(yaxis={'categoryorder':'total ascending'})
+            fig_bar.update_layout(yaxis={'categoryorder': 'total ascending'})
             st.plotly_chart(fig_bar, use_container_width=True)
-            
+
             # --- INFO NOTE ---
             st.caption("""
             **Role in Smog Analysis:** Identifies current "Hotspots." 
@@ -126,16 +237,16 @@ try:
 
         with c2:
             st.subheader("Trend Comparison")
-            
+
             fixed = ['Islamabad', 'Lahore', 'Multan', 'Faisalabad', 'Gujranwala', 'Sargodha']
             top_2 = latest_df.nlargest(2, 'pm2_5')['district'].tolist()
             final_list = list(set(fixed + top_2))
-            
+
             trend_data = df[df['district'].isin(final_list)]
-            
+
             fig_line = px.line(
-                trend_data, 
-                x='timestamp', y='pm2_5', 
+                trend_data,
+                x='timestamp', y='pm2_5',
                 color='district',
                 markers=True,
                 title=f"Comparison: Major Cities + {', '.join(top_2)}"
@@ -154,7 +265,7 @@ try:
         # PART 2: SMOG DIAGNOSTICS (Deep Dive)
         # ==========================================
         st.header("Smog Diagnostics")
-        
+
         d_col1, d_col2 = st.columns([1, 3])
         with d_col1:
             st.markdown("**Select District to Analyze:**")
@@ -172,8 +283,8 @@ try:
                     city_df,
                     x="wind_speed", y="pm2_5",
                     color="pm2_5", color_continuous_scale="RdYlGn_r",
-                    size="pm10", 
-                    trendline="ols", 
+                    size="pm10",
+                    trendline="ols",
                     title=f"Wind Speed vs PM2.5 in {selected_city}"
                 )
                 st.plotly_chart(fig_scatter, use_container_width=True)
