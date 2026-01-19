@@ -624,6 +624,63 @@ try:
                         )
                     )
 
+                    # ----------------------------
+                    # District labels on map (bold-like via shadow + foreground)
+                    # ----------------------------
+
+                    # Limit labels to districts near the selected city to avoid clutter
+                    LABEL_RADIUS_KM = 220  # adjust up/down if you want more/less labels
+
+                    if selected_city in DISTRICT_CENTROIDS:
+                        src_lat, src_lon = DISTRICT_CENTROIDS[selected_city]
+
+                        label_names = []
+                        label_lats = []
+                        label_lons = []
+
+                        # If you already have haversine_km() in your file, use it.
+                        # Otherwise, keep LABEL_RADIUS_KM small.
+                        for name, (lat, lon) in DISTRICT_CENTROIDS.items():
+                            try:
+                                d_km = haversine_km(src_lat, src_lon, lat, lon)
+                            except Exception:
+                                d_km = 0  # fallback if haversine_km isn't present
+
+                            if name == selected_city or d_km <= LABEL_RADIUS_KM:
+                                label_names.append(name)
+                                label_lats.append(lat)
+                                label_lons.append(lon)
+
+                        # Shadow (gives bold/contrast effect)
+                        fig_map_rose.add_trace(
+                            dict(
+                                type="scattermapbox",
+                                lat=label_lats,
+                                lon=label_lons,
+                                mode="text",
+                                text=label_names,
+                                textfont=dict(size=13, color="rgba(0,0,0,0.85)"),
+                                textposition="top center",
+                                showlegend=False,
+                                hoverinfo="skip",
+                            )
+                        )
+
+                        # Foreground text (main label)
+                        fig_map_rose.add_trace(
+                            dict(
+                                type="scattermapbox",
+                                lat=label_lats,
+                                lon=label_lons,
+                                mode="text",
+                                text=label_names,
+                                textfont=dict(size=12, color="rgba(255,255,255,0.95)"),
+                                textposition="top center",
+                                showlegend=False,
+                                hoverinfo="skip",
+                            )
+                        )
+
                     st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
                 # --- INFO NOTE ---
