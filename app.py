@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
 import plotly.express as px
+import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import math
@@ -329,35 +330,41 @@ try:
         with c1:
             st.subheader("Top 10 Polluted Districts")
             top_10 = latest_df.nlargest(10, "pm2_5")[["district", "pm2_5", "pm10"]].copy()
+            top_10 = top_10.sort_values("pm2_5", ascending=True)  # so the highest ends up at top in h-bar
 
-            # Keep district order strictly by PM2.5 (descending)
-            top_10["district"] = pd.Categorical(
-                top_10["district"],
-                categories=top_10.sort_values("pm2_5", ascending=True)["district"].tolist(),
-                ordered=True,
+            fig_bar = go.Figure()
+
+            # PM2.5 (main bar)
+            fig_bar.add_trace(
+                go.Bar(
+                    y=top_10["district"],
+                    x=top_10["pm2_5"],
+                    orientation="h",
+                    name="PM2.5",
+                    marker=dict(color="#FF4B4B"),
+                    text=top_10["pm2_5"].round(0).astype(int),
+                    textposition="outside",
+                    cliponaxis=False,
+                )
             )
 
-            top_10_melt = top_10.melt(
-                id_vars="district",
-                value_vars=["pm2_5", "pm10"],
-                var_name="Pollutant",
-                value_name="Value",
+            # PM10 (overlaid bar)
+            fig_bar.add_trace(
+                go.Bar(
+                    y=top_10["district"],
+                    x=top_10["pm10"],
+                    orientation="h",
+                    name="PM10",
+                    marker=dict(color="#FFA500"),
+                    opacity=0.35,          # overlay effect
+                    width=0.55,            # slightly thinner so PM2.5 remains dominant visually
+                    text=top_10["pm10"].round(0).astype(int),
+                    textposition="none",   # keep clean; optional: "outside" if you want both labels
+                )
             )
 
-            fig_bar = px.bar(
-                top_10_melt,
-                x="Value",
-                y="district",
-                orientation="h",
-                color="Pollutant",
-                barmode="group",
-                text=top_10_melt["Value"].round(0).astype(int),
-                color_discrete_map={"pm2_5": "#FF4B4B", "pm10": "#FFA500"},
-            )
-
-            fig_bar.update_traces(textposition="outside", cliponaxis=False)
             fig_bar.update_layout(
-                yaxis={"categoryorder": "array", "categoryarray": top_10["district"].tolist()},
+                barmode="overlay",  # <-- key change
                 xaxis_title="µg/m³",
                 legend_title_text="",
                 margin=dict(l=10, r=10, t=10, b=10),
