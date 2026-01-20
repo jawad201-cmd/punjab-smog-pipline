@@ -690,38 +690,6 @@ try:
                         )
                     )
 
-                    # --- Direction labels on the map-wind-rose (no compass) ---
-                    dir_order = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-
-                    label_lats = []
-                    label_lons = []
-                    label_text = []
-
-                    # place labels at a fixed radius so they sit cleanly on the wedges
-                    label_radius_km = base_km + max_add_km + 8  # slightly outside the longest sector
-
-                    for d in dir_order:
-                        b = CARDINAL_TO_DEG.get(d)
-                        if b is None:
-                            continue
-                        latp, lonp = destination_point(src_lat, src_lon, b, label_radius_km)
-                        label_lats.append(latp)
-                        label_lons.append(lonp)
-                        label_text.append(d)
-
-                    fig_map_rose.add_trace(
-                        dict(
-                            type="scattermapbox",
-                            lat=label_lats,
-                            lon=label_lons,
-                            mode="text",
-                            text=label_text,
-                            textfont=dict(size=18, color="rgba(255,255,255,1.0)"),
-                            showlegend=False,
-                            hoverinfo="skip",
-                        )
-                    )
-
                     # ----------------------------
                     # District labels (high-contrast, bold-like) — ADD THIS LAST
                     # ----------------------------
