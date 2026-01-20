@@ -776,59 +776,59 @@ try:
                 Long bars indicate which direction the pollution is blowing from (e.g., East = Cross-border crop burning; West = Local vehicular emissions).
                 """)
 
+            # ==========================================
+            # Fire Lag Test: PM2.5(t) vs Fire(t-k)
+            # (Lag 0, Lag 1, Lag 2) in one figure
+            # ==========================================
+            st.subheader("Fire Lag Test (PM2.5 vs Fire Intensity)")
 
-                # ==========================================
-                # Fire Lag Test: PM2.5(t) vs Fire(t-k)
-                # (Lag 0, Lag 1, Lag 2) in one figure
-                # ==========================================
-                st.subheader("Fire Lag Test (PM2.5 vs Fire Intensity)")
+            # Pick the fire column robustly (works even if your DB column name changes)
+            fire_candidates = [c for c in ["fire_intensity", "fire_load", "provincial_fire_load"] if c in df.columns]
+            if not fire_candidates:
+                fire_candidates = [c for c in df.columns if "fire" in c.lower()]
+            fire_col = fire_candidates[0] if fire_candidates else None
 
-                # Pick the fire column robustly (works even if your DB column name changes)
-                fire_candidates = [c for c in ["fire_intensity", "fire_load", "provincial_fire_load"] if c in df.columns]
-                if not fire_candidates:
-                    fire_candidates = [c for c in df.columns if "fire" in c.lower()]
-                fire_col = fire_candidates[0] if fire_candidates else None
+            if fire_col is None:
+                st.warning("No fire-related column found in your data (expected something like provincial_fire_load).")
+            else:
+                lag_base = df[["district", "timestamp", "pm2_5", fire_col]].dropna().copy()
+                lag_base["timestamp"] = pd.to_datetime(lag_base["timestamp"])
+                lag_base = lag_base.sort_values(["district", "timestamp"])
 
-                if fire_col is None:
-                    st.warning("No fire-related column found in your data (expected something like provincial_fire_load).")
-                else:
-                    lag_base = df[["district", "timestamp", "pm2_5", fire_col]].dropna().copy()
-                    lag_base["timestamp"] = pd.to_datetime(lag_base["timestamp"])
-                    lag_base = lag_base.sort_values(["district", "timestamp"])
+                frames = []
+                for k in [0, 1, 2]:
+                    tmp = lag_base.copy()
+                    tmp["Lag"] = f"Lag {k}"
+                    tmp["Fire"] = tmp[fire_col] if k == 0 else tmp.groupby("district")[fire_col].shift(k)
+                    frames.append(tmp)
 
-                    frames = []
-                    for k in [0, 1, 2]:
-                        tmp = lag_base.copy()
-                        tmp["Lag"] = f"Lag {k}"
-                        tmp["Fire"] = tmp[fire_col] if k == 0 else tmp.groupby("district")[fire_col].shift(k)
-                        frames.append(tmp)
+                lag_long = pd.concat(frames, ignore_index=True).dropna(subset=["Fire", "pm2_5"])
 
-                    lag_long = pd.concat(frames, ignore_index=True).dropna(subset=["Fire", "pm2_5"])
+                fig_fire_lag = px.scatter(
+                    lag_long,
+                    x="Fire",
+                    y="pm2_5",
+                    facet_col="Lag",
+                    facet_col_spacing=0.05,
+                    opacity=0.70,
+                    trendline="ols",
+                    template="plotly_dark",
+                    labels={"Fire": f"{fire_col} (lagged)", "pm2_5": "PM2.5 (µg/m³)", "Lag": ""},
+                    title="PM2.5 response timing vs Fire Intensity (Lag 0 / 1 / 2)",
+                )
 
-                    fig_fire_lag = px.scatter(
-                        lag_long,
-                        x="Fire",
-                        y="pm2_5",
-                        facet_col="Lag",
-                        facet_col_spacing=0.05,
-                        opacity=0.70,
-                        trendline="ols",
-                        template="plotly_dark",
-                        labels={"Fire": f"{fire_col} (lagged)", "pm2_5": "PM2.5 (µg/m³)", "Lag": ""},
-                        title="PM2.5 response timing vs Fire Intensity (Lag 0 / 1 / 2)",
-                    )
+                # Make points a bit bigger (you asked for larger markers earlier)
+                fig_fire_lag.update_traces(marker=dict(size=9))
 
-                    # Make points a bit bigger (you asked for larger markers earlier)
-                    fig_fire_lag.update_traces(marker=dict(size=9))
+                # Tight, dashboard-friendly sizing
+                fig_fire_lag.update_layout(
+                    height=380,
+                    margin=dict(l=10, r=10, t=60, b=10),
+                )
 
-                    # Tight, dashboard-friendly sizing
-                    fig_fire_lag.update_layout(
-                        height=420,
-                        margin=dict(l=10, r=10, t=60, b=10),
-                    )
+                st.plotly_chart(fig_fire_lag, use_container_width=True, config=PLOTLY_CONFIG)
 
-                    st.plotly_chart(fig_fire_lag, use_container_width=True, config=PLOTLY_CONFIG)
-
+            
             with st.expander(f"View Raw Data for {selected_city}"):
                 st.dataframe(city_df)
         else:
