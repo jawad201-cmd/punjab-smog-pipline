@@ -51,6 +51,9 @@ PLOTLY_CONFIG = {
     "doubleClick": "reset",  # double-click resets zoom
 }
 
+PANEL_H = 380  # pick 360–420; 380 is a good balanced dashboard height
+PANEL_MARGIN = dict(l=10, r=10, t=45, b=10)
+
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Punjab Smog Intelligence", page_icon="🌫️", layout="wide")
 
@@ -472,6 +475,7 @@ try:
                     labels={"wind_speed": "Wind Speed", "Concentration": "Concentration (µg/m³)", "Pollutant": ""},
                 )
                 fig_scatter.update_traces(marker=dict(size=10))
+                fig_scatter.update_layout(height=PANEL_H, margin=PANEL_MARGIN, dragmode=False)
 
                 st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
 
@@ -514,7 +518,7 @@ try:
                     labels={"wind_cardinal": "Wind Direction", "Median PM2.5": "Median PM2.5 (µg/m³)", "Wind Band": ""},
                 )
 
-                fig_wind_pm.update_layout(height=460, dragmode=False)
+                fig_wind_pm.update_layout(height=PANEL_H, margin=PANEL_MARGIN, dragmode=False)
                 st.plotly_chart(fig_wind_pm, use_container_width=True, config=PLOTLY_CONFIG)
 
                 # --- INFO NOTE ---
@@ -568,7 +572,7 @@ try:
                         lat=[src_lat],
                         lon=[src_lon],
                         zoom=7,
-                        height=430,
+                        height=PANEL_H,
                         title=f"Downwind Impact Sectors — {selected_city}"
                     )
                     fig_map_rose.update_layout(
@@ -758,8 +762,8 @@ try:
                     )
 
                     # --- Compact, side-by-side layout (polar + map) ---
-                    fig_rose.update_layout(height=320, margin=dict(l=10, r=10, t=35, b=10))
-                    fig_map_rose.update_layout(height=320, margin=dict(l=0, r=0, t=35, b=0))
+                    fig_rose.update_layout(height=PANEL_H, margin=dict(l=10, r=10, t=45, b=10))
+                    fig_map_rose.update_layout(height=PANEL_H, margin=dict(l=0, r=0, t=45, b=0))
 
                     left, right = st.columns([1, 1.35], gap="small")  # map gets a bit more width
 
@@ -808,7 +812,7 @@ try:
                     )
 
                     fig_ratio.update_traces(marker=dict(size=10))
-                    fig_ratio.update_layout(height=420, dragmode=False, margin=dict(l=10, r=10, t=60, b=10))
+                    fig_ratio.update_layout(height=PANEL_H, dragmode=False, margin=dict(l=10, r=10, t=45, b=10))
 
                     st.plotly_chart(fig_ratio, use_container_width=True, config=PLOTLY_CONFIG)
 
