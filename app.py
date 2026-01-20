@@ -476,7 +476,8 @@ try:
                 st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
 
                 # ==========================================
-                # Wind Direction vs Median PM2.5 (Low vs Moderate wind) — ALWAYS 2 PANELS
+                # Wind Direction vs Median PM2.5 (single panel)
+                # Color/series = wind band (Low vs Moderate)
                 # ==========================================
 
                 if "wind_cardinal" not in city_df.columns:
@@ -487,36 +488,33 @@ try:
 
                 wd_df = city_df[["wind_cardinal", "wind_speed", "pm2_5"]].dropna(subset=["wind_cardinal", "wind_speed", "pm2_5"]).copy()
 
-                # Force BOTH bands to exist as categories (even if one has 0 rows)
-                wd_df["Wind Band"] = wd_df["wind_speed"].apply(lambda v: wind_band_order[0] if v <= 11 else wind_band_order[1])
+                wd_df["Wind Band"] = wd_df["wind_speed"].apply(lambda v: wind_band_order[0] if v <= 7 else wind_band_order[1])
                 wd_df["Wind Band"] = pd.Categorical(wd_df["Wind Band"], categories=wind_band_order, ordered=True)
                 wd_df["wind_cardinal"] = pd.Categorical(wd_df["wind_cardinal"], categories=wind_dir_order, ordered=True)
 
-                # Median PM2.5 per (Wind Band, Direction)
-                med = (
-                    wd_df.groupby(["Wind Band", "wind_cardinal"], observed=False, as_index=False)["pm2_5"]
+                wind_pm_median = (
+                    wd_df.groupby(["wind_cardinal", "Wind Band"], observed=False, as_index=False)["pm2_5"]
                     .median()
                     .rename(columns={"pm2_5": "Median PM2.5"})
                 )
 
-                # Build full grid so both facet panels render even if empty
-                full = pd.MultiIndex.from_product([wind_band_order, wind_dir_order], names=["Wind Band", "wind_cardinal"]).to_frame(index=False)
-                plot_df = full.merge(med, on=["Wind Band", "wind_cardinal"], how="left")
+                # Ensure both bands appear for every direction (even if missing in data)
+                full = pd.MultiIndex.from_product([wind_dir_order, wind_band_order], names=["wind_cardinal", "Wind Band"]).to_frame(index=False)
+                plot_df = full.merge(wind_pm_median, on=["wind_cardinal", "Wind Band"], how="left")
 
                 fig_wind_pm = px.bar(
                     plot_df,
                     x="wind_cardinal",
                     y="Median PM2.5",
-                    facet_col="Wind Band",
-                    category_orders={"Wind Band": wind_band_order, "wind_cardinal": wind_dir_order},
-                    title=f"Wind Direction vs Median PM2.5 — {selected_city}",
+                    color="Wind Band",
+                    barmode="group",
+                    category_orders={"wind_cardinal": wind_dir_order, "Wind Band": wind_band_order},
+                    color_discrete_map={"Low (≤11 km/h)": "#6EA8FF", "Moderate (≥12 km/h)": "#FFD166"},
+                    title=f"Wind Direction vs Median PM2.5 by Wind Speed — {selected_city}",
                     labels={"wind_cardinal": "Wind Direction", "Median PM2.5": "Median PM2.5 (µg/m³)", "Wind Band": ""},
                 )
 
                 fig_wind_pm.update_layout(height=460, dragmode=False)
-                fig_wind_pm.update_xaxes(title_text="")
-                fig_wind_pm.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))  # cleaner facet titles
-
                 st.plotly_chart(fig_wind_pm, use_container_width=True, config=PLOTLY_CONFIG)
 
                 # --- INFO NOTE ---
