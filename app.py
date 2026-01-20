@@ -484,7 +484,7 @@ try:
                     city_df = add_wind_cardinals(city_df)
 
                 wind_dir_order = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-                wind_band_order = ["Low (≤11 km/h)", "Moderate (≥12 km/h)"]
+                wind_band_order = ["Low (≤7 km/h)", "Moderate (>7 km/h)"]
 
                 wd_df = city_df[["wind_cardinal", "wind_speed", "pm2_5"]].dropna(subset=["wind_cardinal", "wind_speed", "pm2_5"]).copy()
 
@@ -509,7 +509,7 @@ try:
                     color="Wind Band",
                     barmode="group",
                     category_orders={"wind_cardinal": wind_dir_order, "Wind Band": wind_band_order},
-                    color_discrete_map={"Low (≤11 km/h)": "#6EA8FF", "Moderate (≥12 km/h)": "#FFD166"},
+                    color_discrete_map={"Low (≤7 km/h)": "#6EA8FF", "Moderate (>7 km/h)": "#FFD166"},
                     title=f"Wind Direction vs Median PM2.5 by Wind Speed — {selected_city}",
                     labels={"wind_cardinal": "Wind Direction", "Median PM2.5": "Median PM2.5 (µg/m³)", "Wind Band": ""},
                 )
