@@ -475,6 +475,51 @@ try:
 
                 st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
 
+                # ==========================================
+                # Wind Direction vs Median PM2.5 (binned by wind speed)
+                # Low wind (<=11 km/h) vs Moderate wind (>=12 km/h)
+                # ==========================================
+
+                # Ensure wind_cardinal exists (if your app already creates it globally, this is harmless)
+                if "wind_cardinal" not in city_df.columns:
+                    city_df = add_wind_cardinals(city_df)
+
+                wind_dir_order = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+
+                wd_df = city_df[["wind_cardinal", "wind_speed", "pm2_5"]].dropna(subset=["wind_cardinal", "wind_speed", "pm2_5"]).copy()
+
+                wd_df["Wind Band"] = wd_df["wind_speed"].apply(lambda v: "Low (≤11 km/h)" if v <= 11 else "Moderate (≥12 km/h)")
+
+                wind_pm_median = (
+                    wd_df.groupby(["Wind Band", "wind_cardinal"], as_index=False)["pm2_5"]
+                    .median()
+                    .rename(columns={"pm2_5": "Median PM2.5"})
+                )
+
+                # Keep consistent sector order
+                wind_pm_median["wind_cardinal"] = pd.Categorical(
+                    wind_pm_median["wind_cardinal"],
+                    categories=wind_dir_order,
+                    ordered=True,
+                )
+
+                fig_wind_pm = px.bar(
+                    wind_pm_median,
+                    x="wind_cardinal",
+                    y="Median PM2.5",
+                    facet_col="Wind Band",              # separate panels
+                    category_orders={"wind_cardinal": wind_dir_order},
+                    title=f"Wind Direction vs Median PM2.5 — {selected_city}",
+                    labels={"wind_cardinal": "Wind Direction", "Median PM2.5": "Median PM2.5 (µg/m³)", "Wind Band": ""},
+                )
+
+                fig_wind_pm.update_layout(height=460, dragmode=False)
+                fig_wind_pm.update_xaxes(title_text="")
+                fig_wind_pm.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))  # cleaner facet titles
+
+                st.plotly_chart(fig_wind_pm, use_container_width=True, config=PLOTLY_CONFIG)
+
+
                 # --- INFO NOTE ---
                 st.caption("""
                 **Role in Smog Analysis:** Measures "Dispersion Capacity."
