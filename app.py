@@ -766,6 +766,7 @@ try:
                     with left:
                         st.plotly_chart(fig_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
+                    fig_map_rose.update_layout(mapbox=dict(center=dict(lat=src_lat, lon=src_lon), zoom=5.8))
                     with right:
                         st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
