@@ -771,64 +771,47 @@ try:
                         st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
                 # ==========================================
-                # Fire Lag Test (TRUE DAILY LAG):
-                # PM2.5(day t) vs local_fire_frp(day t-k), k = 0, 1, 2
+                # Ratio Analysis: (PM2.5 / PM10) vs Wind, colored by Fire (local_fire_frp)
                 # ==========================================
-                st.subheader("Fire Lag Test (PM2.5 vs Local Fire FRP) — Lag 0/1/2 (Daily)")
+                st.subheader("PM2.5/PM10 Ratio vs Wind Speed (Colored by Local Fire FRP)")
 
                 fire_col = "local_fire_frp"
 
                 if fire_col not in df.columns:
                     st.warning("Column 'local_fire_frp' not found in your data.")
                 else:
-                    base = df[["district", "timestamp", "pm2_5", fire_col]].dropna().copy()
-                    base["timestamp"] = pd.to_datetime(base["timestamp"])
-                    base["date"] = base["timestamp"].dt.date
+                    ratio_df = city_df[["wind_speed", "pm2_5", "pm10", fire_col]].copy()
 
-                    # Daily aggregation (robust even if raw data is hourly)
-                    daily = (
-                        base.groupby(["district", "date"], as_index=False)
-                            .agg(
-                                pm2_5=("pm2_5", "median"),           # daily PM2.5
-                                fire=(fire_col, "sum"),              # daily total FRP (use "mean" if you prefer)
-                            )
-                            .sort_values(["district", "date"])
-                    )
+                    # Avoid divide-by-zero and invalid ratios
+                    ratio_df = ratio_df.dropna(subset=["wind_speed", "pm2_5", "pm10", fire_col])
+                    ratio_df = ratio_df[ratio_df["pm10"] > 0]
 
-                    # True day lags
-                    daily["Fire (Lag 0: t)"] = daily["fire"]
-                    daily["Fire (Lag 1: t-1 day)"] = daily.groupby("district")["fire"].shift(1)
-                    daily["Fire (Lag 2: t-2 days)"] = daily.groupby("district")["fire"].shift(2)
+                    ratio_df["pm_ratio"] = ratio_df["pm2_5"] / ratio_df["pm10"]
 
-                    # Long form for plotting
-                    lag_long = daily.melt(
-                        id_vars=["district", "date", "pm2_5"],
-                        value_vars=["Fire (Lag 0: t)", "Fire (Lag 1: t-1 day)", "Fire (Lag 2: t-2 days)"],
-                        var_name="Lag",
-                        value_name="Fire",
-                    ).dropna(subset=["Fire", "pm2_5"])
+                    # Optional: cap extreme ratios for readability (comment out if you want raw)
+                    ratio_df = ratio_df[(ratio_df["pm_ratio"] >= 0) & (ratio_df["pm_ratio"] <= 2.0)]
 
-                    fig_fire_lag = px.scatter(
-                        lag_long,
-                        x="Fire",
-                        y="pm2_5",
-                        color="Lag",
+                    fig_ratio = px.scatter(
+                        ratio_df,
+                        x="wind_speed",
+                        y="pm_ratio",
+                        color=fire_col,
+                        opacity=0.75,
                         trendline="ols",
-                        opacity=0.70,
                         template="plotly_dark",
-                        title="PM2.5(day t) vs Local Fire FRP(day t−k) — k = 0/1/2",
-                        labels={"Fire": "Daily local_fire_frp (lagged)", "pm2_5": "Daily PM2.5 (median, µg/m³)", "Lag": ""},
-                        color_discrete_map={
-                            "Fire (Lag 0: t)": "#6EA8FF",
-                            "Fire (Lag 1: t-1 day)": "#FFD166",
-                            "Fire (Lag 2: t-2 days)": "#FF4B4B",
+                        labels={
+                            "wind_speed": "Wind Speed (km/h)",
+                            "pm_ratio": "PM2.5 / PM10",
+                            fire_col: "Local Fire FRP",
                         },
+                        title=f"PM2.5/PM10 Ratio vs Wind Speed (Fire Intensity = Color) — {selected_city}",
+                        color_continuous_scale="Turbo",
                     )
 
-                    fig_fire_lag.update_traces(marker=dict(size=9))
-                    fig_fire_lag.update_layout(height=420, margin=dict(l=10, r=10, t=60, b=10), dragmode=False)
+                    fig_ratio.update_traces(marker=dict(size=10))
+                    fig_ratio.update_layout(height=420, dragmode=False, margin=dict(l=10, r=10, t=60, b=10))
 
-                    st.plotly_chart(fig_fire_lag, use_container_width=True, config=PLOTLY_CONFIG)
+                    st.plotly_chart(fig_ratio, use_container_width=True, config=PLOTLY_CONFIG)
 
 
                 # --- INFO NOTE ---
