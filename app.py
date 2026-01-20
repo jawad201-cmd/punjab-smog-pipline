@@ -51,7 +51,7 @@ PLOTLY_CONFIG = {
     "doubleClick": "reset",  # double-click resets zoom
 }
 
-PANEL_H = 380  # pick 360–420; 380 is a good balanced dashboard height
+PANEL_H = 400  # pick 360–420; 380 is a good balanced dashboard height
 PANEL_MARGIN = dict(l=10, r=10, t=45, b=10)
 
 # --- PAGE CONFIG ---
