@@ -773,7 +773,6 @@ try:
                 # ==========================================
                 # Ratio Analysis: (PM2.5 / PM10) vs Wind, colored by Fire (local_fire_frp)
                 # ==========================================
-                st.subheader("PM2.5/PM10 Ratio vs Wind Speed (Colored by Local Fire FRP)")
 
                 fire_col = "local_fire_frp"
 
