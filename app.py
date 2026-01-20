@@ -536,7 +536,6 @@ try:
                     color_discrete_map={"pm2_5": "#FF4B4B", "pm10": "#FFA500"},
                     title=f"Avg Pollution by Wind Direction"
                 )
-                st.plotly_chart(fig_rose, use_container_width=True, config=PLOTLY_CONFIG)
                 
                 # ----------------------------
                 # Map-based Wind Rose (Dark Map) — refined
@@ -790,7 +789,17 @@ try:
                         )
                     )
 
-                    st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
+                    # --- Compact, side-by-side layout (polar + map) ---
+                    fig_rose.update_layout(height=320, margin=dict(l=10, r=10, t=35, b=10))
+                    fig_map_rose.update_layout(height=320, margin=dict(l=0, r=0, t=35, b=0))
+
+                    left, right = st.columns([1, 1.35], gap="small")  # map gets a bit more width
+
+                    with left:
+                        st.plotly_chart(fig_rose, use_container_width=True, config=PLOTLY_CONFIG)
+
+                    with right:
+                        st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
                 # --- INFO NOTE ---
                 st.caption("""
