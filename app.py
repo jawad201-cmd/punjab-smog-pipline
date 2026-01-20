@@ -770,6 +770,67 @@ try:
                     with right:
                         st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
+                # ==========================================
+                # Fire Lag Test (TRUE DAILY LAG):
+                # PM2.5(day t) vs local_fire_frp(day t-k), k = 0, 1, 2
+                # ==========================================
+                st.subheader("Fire Lag Test (PM2.5 vs Local Fire FRP) — Lag 0/1/2 (Daily)")
+
+                fire_col = "local_fire_frp"
+
+                if fire_col not in df.columns:
+                    st.warning("Column 'local_fire_frp' not found in your data.")
+                else:
+                    base = df[["district", "timestamp", "pm2_5", fire_col]].dropna().copy()
+                    base["timestamp"] = pd.to_datetime(base["timestamp"])
+                    base["date"] = base["timestamp"].dt.date
+
+                    # Daily aggregation (robust even if raw data is hourly)
+                    daily = (
+                        base.groupby(["district", "date"], as_index=False)
+                            .agg(
+                                pm2_5=("pm2_5", "median"),           # daily PM2.5
+                                fire=(fire_col, "sum"),              # daily total FRP (use "mean" if you prefer)
+                            )
+                            .sort_values(["district", "date"])
+                    )
+
+                    # True day lags
+                    daily["Fire (Lag 0: t)"] = daily["fire"]
+                    daily["Fire (Lag 1: t-1 day)"] = daily.groupby("district")["fire"].shift(1)
+                    daily["Fire (Lag 2: t-2 days)"] = daily.groupby("district")["fire"].shift(2)
+
+                    # Long form for plotting
+                    lag_long = daily.melt(
+                        id_vars=["district", "date", "pm2_5"],
+                        value_vars=["Fire (Lag 0: t)", "Fire (Lag 1: t-1 day)", "Fire (Lag 2: t-2 days)"],
+                        var_name="Lag",
+                        value_name="Fire",
+                    ).dropna(subset=["Fire", "pm2_5"])
+
+                    fig_fire_lag = px.scatter(
+                        lag_long,
+                        x="Fire",
+                        y="pm2_5",
+                        color="Lag",
+                        trendline="ols",
+                        opacity=0.70,
+                        template="plotly_dark",
+                        title="PM2.5(day t) vs Local Fire FRP(day t−k) — k = 0/1/2",
+                        labels={"Fire": "Daily local_fire_frp (lagged)", "pm2_5": "Daily PM2.5 (median, µg/m³)", "Lag": ""},
+                        color_discrete_map={
+                            "Fire (Lag 0: t)": "#6EA8FF",
+                            "Fire (Lag 1: t-1 day)": "#FFD166",
+                            "Fire (Lag 2: t-2 days)": "#FF4B4B",
+                        },
+                    )
+
+                    fig_fire_lag.update_traces(marker=dict(size=9))
+                    fig_fire_lag.update_layout(height=420, margin=dict(l=10, r=10, t=60, b=10), dragmode=False)
+
+                    st.plotly_chart(fig_fire_lag, use_container_width=True, config=PLOTLY_CONFIG)
+
+
                 # --- INFO NOTE ---
                 st.caption("""
                 **Role in Smog Analysis:** Identifies the "Source."
