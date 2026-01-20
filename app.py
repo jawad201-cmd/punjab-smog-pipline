@@ -782,7 +782,7 @@ try:
             # ==========================================
             st.subheader("Fire Lag Test (PM2.5 vs Local FRP)")
 
-            fire_col = "local_frp"
+            fire_col = "local_fire_frp"
 
             if fire_col not in df.columns:
                 st.warning("Column 'local_frp' not found in your data.")
