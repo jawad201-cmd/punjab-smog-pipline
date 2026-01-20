@@ -777,47 +777,69 @@ try:
                 """)
 
             # ==========================================
-            # Fire Lag Test: PM2.5(t) vs local_frp(t-k)
-            # (Lag 0, Lag 1, Lag 2) in one figure
+            # Fire Lag Test (TRUE DAILY LAG):
+            # PM2.5(day t) vs local_fire_frp(day t-k)
+            # k = 0, 1, 2
             # ==========================================
-            st.subheader("Fire Lag Test (PM2.5 vs Local FRP)")
+            st.subheader("Fire Lag Test (PM2.5 vs Local Fire FRP) — True Daily Lag")
 
             fire_col = "local_fire_frp"
 
             if fire_col not in df.columns:
-                st.warning("Column 'local_frp' not found in your data.")
+                st.warning("Column 'local_fire_frp' not found in your data.")
             else:
-                lag_base = df[["district", "timestamp", "pm2_5", fire_col]].dropna().copy()
-                lag_base["timestamp"] = pd.to_datetime(lag_base["timestamp"])
-                lag_base = lag_base.sort_values(["district", "timestamp"])
+                base = df[["district", "timestamp", "pm2_5", fire_col]].dropna().copy()
+                base["timestamp"] = pd.to_datetime(base["timestamp"])
 
-                frames = []
-                for k in [0, 1, 2]:
-                    tmp = lag_base.copy()
-                    tmp["Lag"] = f"Lag {k}"
-                    tmp["Fire"] = tmp[fire_col] if k == 0 else tmp.groupby("district")[fire_col].shift(k)
-                    frames.append(tmp)
+                # Build a district-day dataset (robust even if raw data is hourly)
+                base["date"] = base["timestamp"].dt.date
 
-                lag_long = pd.concat(frames, ignore_index=True).dropna(subset=["Fire", "pm2_5"])
+                daily = (
+                    base.groupby(["district", "date"], as_index=False)
+                        .agg(
+                            pm2_5=("pm2_5", "median"),              # or "mean" if you prefer
+                            fire=("local_fire_frp", "sum"),         # daily total FRP; can use "mean" if desired
+                        )
+                        .sort_values(["district", "date"])
+                )
+
+                # True lag by day (t-1 day, t-2 days)
+                daily["fire_lag0"] = daily["fire"]
+                daily["fire_lag1"] = daily.groupby("district")["fire"].shift(1)
+                daily["fire_lag2"] = daily.groupby("district")["fire"].shift(2)
+
+                # Convert to long form for plotting
+                lag_long = daily.melt(
+                    id_vars=["district", "date", "pm2_5"],
+                    value_vars=["fire_lag0", "fire_lag1", "fire_lag2"],
+                    var_name="Lag",
+                    value_name="Fire",
+                ).dropna(subset=["Fire", "pm2_5"])
+
+                lag_map = {"fire_lag0": "Lag 0 (t)", "fire_lag1": "Lag 1 (t-1 day)", "fire_lag2": "Lag 2 (t-2 days)"}
+                lag_long["Lag"] = lag_long["Lag"].map(lag_map)
 
                 fig_fire_lag = px.scatter(
                     lag_long,
                     x="Fire",
                     y="pm2_5",
-                    facet_col="Lag",
-                    facet_col_spacing=0.05,
-                    opacity=0.70,
+                    color="Lag",
                     trendline="ols",
+                    opacity=0.70,
                     template="plotly_dark",
-                    labels={"Fire": "local_frp (lagged)", "pm2_5": "PM2.5 (µg/m³)", "Lag": ""},
-                    title="PM2.5 response timing vs Local FRP (Lag 0 / 1 / 2)",
+                    title="PM2.5(day t) vs Local Fire FRP(day t−k), k = 0/1/2",
+                    labels={"Fire": "Daily local_fire_frp (lagged)", "pm2_5": "Daily PM2.5 (median, µg/m³)", "Lag": ""},
+                    color_discrete_map={
+                        "Lag 0 (t)": "#6EA8FF",
+                        "Lag 1 (t-1 day)": "#FFD166",
+                        "Lag 2 (t-2 days)": "#FF4B4B",
+                    },
                 )
 
                 fig_fire_lag.update_traces(marker=dict(size=9))
-                fig_fire_lag.update_layout(height=380, margin=dict(l=10, r=10, t=60, b=10))
+                fig_fire_lag.update_layout(height=420, margin=dict(l=10, r=10, t=60, b=10), dragmode=False)
 
                 st.plotly_chart(fig_fire_lag, use_container_width=True, config=PLOTLY_CONFIG)
-
             
             with st.expander(f"View Raw Data for {selected_city}"):
                 st.dataframe(city_df)
