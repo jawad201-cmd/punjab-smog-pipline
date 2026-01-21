@@ -389,10 +389,10 @@ st.markdown("""
 /* Container holding the two hover buttons */
 .hover-info-row{
   display:flex;
-  gap:12px;
+  gap:10px;
   align-items:center;
-  margin-top:6px;
-  margin-bottom:6px;
+  margin-top:8px;
+  margin-bottom:10px;   /* gives breathing space before interpretation */
 }
 
 /* Pill button */
@@ -401,21 +401,26 @@ st.markdown("""
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:6px 12px;
+
+  padding:5px 10px;
   font-size:12px;
   line-height:1;
-  border-radius:999px; /* 50% rounded */
-  border:1px solid rgba(255,255,255,0.18);
-  background:rgba(255,255,255,0.06);
+
+  border-radius:999px; /* fully rounded */
+  border:1px solid rgba(255,255,255,0.20);
+
+  /* solid (not transparent) */
+  background:#1B2230;
   color:rgba(255,255,255,0.92);
+
   cursor:pointer;
   user-select:none;
   transition:background 120ms ease, border-color 120ms ease, transform 120ms ease;
 }
 
 .hover-btn:hover{
-  background:rgba(255,255,255,0.10);
-  border-color:rgba(255,255,255,0.28);
+  background:#222C3D;
+  border-color:rgba(255,255,255,0.32);
   transform:translateY(-1px);
 }
 
@@ -423,18 +428,29 @@ st.markdown("""
 .hover-pop{
   position:absolute;
   left:0;
-  top:110%;
+  top:120%;
+
   width:360px;
   max-width:70vw;
   padding:10px 12px;
-  border-radius:14px;
-  background:#141820; !important;
-  border:1px solid rgba(255,255,255,0.12);
-  box-shadow:0 10px 30px rgba(0,0,0,0.45);
-  color:rgba(255,255,255,0.92);
-  font-size:12px;
 
-  opacity:1;
+  border-radius:14px;
+
+  /* solid background */
+  background:#141820 !important;
+  border:1px solid rgba(255,255,255,0.14);
+  box-shadow:0 10px 30px rgba(0,0,0,0.50);
+
+  color:rgba(255,255,255,0.95);
+  font-size:12px;
+  line-height:1.35;
+
+  /* prevent text overflow mess */
+  white-space:normal;
+  max-height:220px;
+  overflow:auto;
+
+  opacity:0;
   visibility:hidden;
   transform:translateY(-4px);
   transition:opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
@@ -449,9 +465,10 @@ st.markdown("""
   left:18px;
   width:12px;
   height:12px;
-  background:#141820; !important;
-  border-left:1px solid rgba(255,255,255,0.12);
-  border-top:1px solid rgba(255,255,255,0.12);
+
+  background:#141820 !important;
+  border-left:1px solid rgba(255,255,255,0.14);
+  border-top:1px solid rgba(255,255,255,0.14);
   transform:rotate(45deg);
 }
 
@@ -462,13 +479,12 @@ st.markdown("""
   transform:translateY(0);
 }
 
-/* Bigger interpretation text */
+/* Bigger interpretation text + real spacing below it */
 .interpretation-note{
-  margin-top:6px; !important;
-  margin-buttom:20px; !important;
-  font-size:14px; !important;
-  line-height:1.35; !important;
-  color:rgba(255,255,255,0.85); !important;
+  margin-top:10px !important;
+  margin-bottom:26px !important;  /* this is the vertical separation you want */
+  font-size:15px !important;      /* slightly bigger */
+  line-height:1.4 !important;
 }
 </style>
 """, unsafe_allow_html=True)
