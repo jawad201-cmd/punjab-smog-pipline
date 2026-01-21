@@ -261,94 +261,6 @@ PANEL_MARGIN = dict(l=10, r=10, t=45, b=10)
 st.set_page_config(page_title="Punjab Smog Intelligence", page_icon="🌫️", layout="wide")
 
 # --- GRAPH BUTTON CINFIG ---
-st.markdown("""
-<style>
-/* Container holding the two hover buttons */
-.hover-info-row{
-  display:flex;
-  gap:12px;
-  align-items:center;
-  margin-top:6px;
-  margin-bottom:6px;
-}
-
-/* Pill button */
-.hover-btn{
-  position:relative;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:6px 12px;
-  font-size:12px;
-  line-height:1;
-  border-radius:999px; /* 50% rounded */
-  border:1px solid rgba(255,255,255,0.18);
-  background:rgba(255,255,255,0.06);
-  color:rgba(255,255,255,0.92);
-  cursor:pointer;
-  user-select:none;
-  transition:background 120ms ease, border-color 120ms ease, transform 120ms ease;
-}
-
-.hover-btn:hover{
-  background:rgba(255,255,255,0.10);
-  border-color:rgba(255,255,255,0.28);
-  transform:translateY(-1px);
-}
-
-/* Bubble popover (hidden by default) */
-.hover-pop{
-  position:absolute;
-  left:0;
-  top:110%;
-  width:360px;
-  max-width:70vw;
-  padding:10px 12px;
-  border-radius:14px;
-  background:#141820; !important;
-  border:1px solid rgba(255,255,255,0.12);
-  box-shadow:0 10px 30px rgba(0,0,0,0.45);
-  color:rgba(255,255,255,0.92);
-  font-size:12px;
-
-  opacity:1;
-  visibility:hidden;
-  transform:translateY(-4px);
-  transition:opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
-  z-index:9999;
-}
-
-/* Small tail like a chat bubble */
-.hover-pop:before{
-  content:"";
-  position:absolute;
-  top:-7px;
-  left:18px;
-  width:12px;
-  height:12px;
-  background:#141820; !important;
-  border-left:1px solid rgba(255,255,255,0.12);
-  border-top:1px solid rgba(255,255,255,0.12);
-  transform:rotate(45deg);
-}
-
-/* Show popover only when hovering over the button */
-.hover-btn:hover .hover-pop{
-  opacity:1;
-  visibility:visible;
-  transform:translateY(0);
-}
-
-/* Bigger interpretation text */
-.interpretation-note{
-  margin-top:6px; !important;
-  margin-buttom:20px; !important;
-  font-size:14px; !important;
-  line-height:1.35; !important;
-  color:rgba(255,255,255,0.85); !important;
-}
-</style>
-""", unsafe_allow_html=True)
 
 
 # --- UX POLISH (Transitions + Seamless Reruns) ---
@@ -471,6 +383,95 @@ def inject_global_ux_css():
         """,
         unsafe_allow_html=True,
     )
+
+st.markdown("""
+<style>
+/* Container holding the two hover buttons */
+.hover-info-row{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  margin-top:6px;
+  margin-bottom:6px;
+}
+
+/* Pill button */
+.hover-btn{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 12px;
+  font-size:12px;
+  line-height:1;
+  border-radius:999px; /* 50% rounded */
+  border:1px solid rgba(255,255,255,0.18);
+  background:rgba(255,255,255,0.06);
+  color:rgba(255,255,255,0.92);
+  cursor:pointer;
+  user-select:none;
+  transition:background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.hover-btn:hover{
+  background:rgba(255,255,255,0.10);
+  border-color:rgba(255,255,255,0.28);
+  transform:translateY(-1px);
+}
+
+/* Bubble popover (hidden by default) */
+.hover-pop{
+  position:absolute;
+  left:0;
+  top:110%;
+  width:360px;
+  max-width:70vw;
+  padding:10px 12px;
+  border-radius:14px;
+  background:#141820; !important;
+  border:1px solid rgba(255,255,255,0.12);
+  box-shadow:0 10px 30px rgba(0,0,0,0.45);
+  color:rgba(255,255,255,0.92);
+  font-size:12px;
+
+  opacity:1;
+  visibility:hidden;
+  transform:translateY(-4px);
+  transition:opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  z-index:9999;
+}
+
+/* Small tail like a chat bubble */
+.hover-pop:before{
+  content:"";
+  position:absolute;
+  top:-7px;
+  left:18px;
+  width:12px;
+  height:12px;
+  background:#141820; !important;
+  border-left:1px solid rgba(255,255,255,0.12);
+  border-top:1px solid rgba(255,255,255,0.12);
+  transform:rotate(45deg);
+}
+
+/* Show popover only when hovering over the button */
+.hover-btn:hover .hover-pop{
+  opacity:1;
+  visibility:visible;
+  transform:translateY(0);
+}
+
+/* Bigger interpretation text */
+.interpretation-note{
+  margin-top:6px; !important;
+  margin-buttom:20px; !important;
+  font-size:14px; !important;
+  line-height:1.35; !important;
+  color:rgba(255,255,255,0.85); !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 def persist_scroll_position_across_reruns():
     components.html(
