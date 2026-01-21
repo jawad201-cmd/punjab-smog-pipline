@@ -1,11 +1,213 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 from sqlalchemy import create_engine, text
 import plotly.express as px
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import math
 from locations import DISTRICTS
+
+# -------------------------------
+# UI helpers: button-based reveal
+# -------------------------------
+def _toggle_button(label: str, key: str):
+    if key not in st.session_state:
+        st.session_state[key] = False
+    if st.button(label, key=f"{key}_btn"):
+        st.session_state[key] = not st.session_state[key]
+    return st.session_state[key]
+
+def graph_info_block(key_prefix: str, params_md: str, working_md: str):
+    c1, c2 = st.columns(2)
+    show_params = False
+    show_working = False
+
+    with c1:
+        show_params = _toggle_button("Parameters", f"{key_prefix}_params")
+    with c2:
+        show_working = _toggle_button("Working", f"{key_prefix}_working")
+
+    if show_params:
+        st.markdown(params_md)
+    if show_working:
+        st.markdown(working_md)
+
+# -------------------------------
+# Stats helpers for "outcome note"
+# -------------------------------
+def _lin_stats(x: pd.Series, y: pd.Series):
+    tmp = pd.DataFrame({"x": x, "y": y}).dropna()
+    if len(tmp) < 10 or tmp["x"].nunique() < 2:
+        return None
+    xv = tmp["x"].astype(float).values
+    yv = tmp["y"].astype(float).values
+    slope = np.polyfit(xv, yv, 1)[0]
+    corr = np.corrcoef(xv, yv)[0, 1]
+    # effect size across observed x-range
+    dx = float(np.nanmax(xv) - np.nanmin(xv))
+    dy = float(slope * dx)
+    y_med = float(np.nanmedian(yv))
+    rel = abs(dy) / (abs(y_med) + 1e-9)
+    return {"slope": slope, "corr": corr, "dy": dy, "rel": rel, "n": len(tmp)}
+
+def _banded(series: pd.Series, q: float = 0.75):
+    # returns (low_mask, high_mask) by quantile
+    if series.dropna().empty:
+        return None, None
+    cut = series.quantile(q)
+    return series <= cut, series > cut
+
+# --------------------------------------------
+# Outcome engines (computed from the data)
+# --------------------------------------------
+def outcome_1_wind_speed_pm(city_df: pd.DataFrame):
+    # Wind Speed vs PM2.5/PM10
+    s25 = _lin_stats(city_df["wind_speed"], city_df["pm2_5"])
+    s10 = _lin_stats(city_df["wind_speed"], city_df["pm10"])
+    if not s25 or not s10:
+        return "Interpretation: Not enough valid observations to infer a stable wind–PM relationship."
+
+    def trend_label(sts):
+        if sts["rel"] < 0.05 or abs(sts["corr"]) < 0.15:
+            return "flat"
+        return "down" if sts["slope"] < 0 else "up"
+
+    t25 = trend_label(s25)
+    t10 = trend_label(s10)
+
+    # match your rule-set
+    if t25 == "down" and t10 == "down":
+        return "Interpretation: Both PM2.5 and PM10 decrease as wind increases → dispersion/ventilation is likely dominating (stagnation-driven smog)."
+    if t25 == "down" and t10 in ["flat", "up"]:
+        return "Interpretation: PM2.5 drops but PM10 does not → fine particles disperse, while coarse dust may resuspend at higher wind."
+    if t25 == "up" and t10 == "up":
+        return "Interpretation: Both rise with wind → wind may be transporting pollution into the district (advection / dust events)."
+    if t25 == "flat" and t10 == "flat":
+        return "Interpretation: Wind speed is not the primary control here → emissions, humidity, inversions, or mixing height likely dominate."
+    # fallback: noisy / mixed
+    return "Interpretation: Relationship is mixed/noisy → direction or multiple sources may be more important than speed."
+
+def outcome_2_wind_rose_map(city_df: pd.DataFrame):
+    # Avg Pollution by Wind Direction + map sectors
+    if "wind_cardinal" not in city_df.columns:
+        return "Interpretation: Wind direction bins are missing, so directional source inference cannot be computed."
+    d = city_df.dropna(subset=["wind_cardinal", "pm2_5", "pm10"])
+    if len(d) < 20:
+        return "Interpretation: Not enough directional observations to infer a stable corridor pattern."
+
+    med25 = d.groupby("wind_cardinal")["pm2_5"].median()
+    med10 = d.groupby("wind_cardinal")["pm10"].median()
+
+    if med25.empty:
+        return "Interpretation: Not enough directional observations to infer a stable corridor pattern."
+
+    top25 = med25.idxmax()
+    top10 = med10.idxmax()
+    ratio25 = float(med25.max() / (med25.median() + 1e-9))
+    ratio10 = float(med10.max() / (med10.median() + 1e-9))
+
+    # “one/few directions high” vs “all similar”
+    strong_dir = (ratio25 > 1.25) or (ratio10 > 1.25)
+    flat_dir = (ratio25 < 1.12) and (ratio10 < 1.12)
+
+    if flat_dir:
+        return "Interpretation: PM is broadly similar across directions → local emissions + stagnation likely dominate more than directional transport."
+    if strong_dir:
+        if top25 != top10:
+            return f"Interpretation: Strong directional signal. PM2.5 peaks from {top25} while PM10 peaks from {top10} → likely different source corridors (smoke/combustion vs dust)."
+        return f"Interpretation: One/few directions dominate (peak from {top25}) → likely transported pollution from that upwind corridor."
+    return "Interpretation: Directional differences exist but are moderate → likely mixed local + transport influences."
+
+def outcome_3_dir_split_wind(city_df: pd.DataFrame):
+    # Wind Direction vs median PM2.5 split by wind band (Low vs Moderate)
+    if "wind_cardinal" not in city_df.columns:
+        return "Interpretation: Wind direction bins are missing, so the split-by-wind analysis cannot be computed."
+
+    d = city_df.dropna(subset=["wind_cardinal", "wind_speed", "pm2_5"]).copy()
+    if len(d) < 30:
+        return "Interpretation: Not enough observations for a reliable low-vs-moderate wind split."
+
+    d["band"] = np.where(d["wind_speed"] <= 7, "low", "moderate")
+    med = d.groupby("band")["pm2_5"].median()
+    low_med = float(med.get("low", np.nan))
+    mod_med = float(med.get("moderate", np.nan))
+
+    # directional persistence under moderate wind
+    mod = d[d["band"] == "moderate"].groupby("wind_cardinal")["pm2_5"].median()
+    if not mod.empty:
+        mod_ratio = float(mod.max() / (mod.median() + 1e-9))
+    else:
+        mod_ratio = 1.0
+
+    if np.isfinite(low_med) and np.isfinite(mod_med):
+        if low_med > mod_med * 1.10 and mod_ratio < 1.15:
+            return "Interpretation: Low-wind PM is broadly higher across directions → stagnation/trapping is a key smog driver."
+        if mod_ratio > 1.25:
+            top = mod.idxmax()
+            return f"Interpretation: Under moderate wind, PM spikes mainly from {top} → transport from that upwind sector is likely."
+        if mod_med > low_med * 1.10:
+            return "Interpretation: Moderate wind has higher PM than low wind → wind may be importing pollution (advection dominates)."
+        return "Interpretation: Mixed result → both local accumulation and some directional transport may be contributing."
+    return "Interpretation: Not enough stable low/moderate wind data to conclude."
+
+def outcome_4_ratio_wind_frp(ratio_df: pd.DataFrame, fire_col: str):
+    # PM2.5/PM10 ratio vs wind, FRP color
+    d = ratio_df.dropna(subset=["wind_speed", "pm_ratio", fire_col]).copy()
+    if len(d) < 20:
+        return "Interpretation: Not enough observations to reliably link ratio, wind, and FRP."
+
+    corr_fire = float(d["pm_ratio"].corr(d[fire_col], method="spearman"))
+    corr_wind = float(d["pm_ratio"].corr(d["wind_speed"], method="spearman"))
+
+    low_mask, high_mask = _banded(d[fire_col], 0.75)
+    if low_mask is None:
+        return "Interpretation: Not enough FRP variation to infer a fire–ratio link."
+
+    r_low = float(d.loc[low_mask, "pm_ratio"].median())
+    r_high = float(d.loc[high_mask, "pm_ratio"].median())
+    delta = r_high - r_low
+
+    if delta > 0.03 and corr_fire > 0.15:
+        return "Interpretation: Higher FRP aligns with higher PM2.5/PM10 ratio → fires likely contribute fine smoke-dominated particles."
+    if corr_wind < -0.15:
+        return "Interpretation: Ratio decreases with wind speed → coarse dust influence may rise with wind and/or fine smoke disperses faster."
+    if corr_wind > 0.15:
+        return "Interpretation: Ratio increases with wind speed → wind may be importing fine regional haze (transport)."
+    if abs(corr_fire) < 0.10:
+        return "Interpretation: Ratio remains weakly linked to FRP → PM2.5 dominance may be non-fire sources or transported smoke not captured by local FRP."
+    return "Interpretation: Mixed result → ratio suggests shifting particle mix with modest fire signal."
+
+def outcome_5_fire_lag(daily: pd.DataFrame):
+    # Fire lag test: strongest lag
+    if daily.empty:
+        return "Interpretation: Not enough daily data to infer lag timing."
+
+    def corr(a, b):
+        tmp = daily[[a, b]].dropna()
+        if len(tmp) < 12:
+            return None
+        return float(tmp[a].corr(tmp[b]))
+
+    c0 = corr("fire_lag0", "pm2_5")
+    c1 = corr("fire_lag1", "pm2_5")
+    c2 = corr("fire_lag2", "pm2_5")
+
+    vals = {"Lag 0": c0, "Lag 1": c1, "Lag 2": c2}
+    vals = {k: v for k, v in vals.items() if v is not None}
+    if not vals:
+        return "Interpretation: Not enough valid overlap after lagging to evaluate lag timing."
+
+    best = max(vals, key=lambda k: vals[k])
+    best_val = vals[best]
+
+    if best_val < 0.15:
+        return "Interpretation: All lags are weak/flat → local FRP does not explain PM well; other sources or meteorology likely dominate."
+    if best == "Lag 0":
+        return "Interpretation: Lag 0 is strongest → same-day burning impacts PM quickly."
+    if best == "Lag 1":
+        return "Interpretation: Lag 1 is strongest → next-day PM response suggests transport/overnight accumulation/chemistry."
+    return "Interpretation: Lag 2 is strongest → longer-range transport or secondary PM formation likely dominates."
 
 DISTRICT_CENTROIDS = {k: (v["lat"], v["lon"]) for k, v in DISTRICTS.items()}
 
