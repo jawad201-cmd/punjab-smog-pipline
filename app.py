@@ -305,7 +305,7 @@ st.markdown("""
   max-width:70vw;
   padding:10px 12px;
   border-radius:14px;
-  background:rgba(20,24,32,0.96);
+  background:#141820;
   border:1px solid rgba(255,255,255,0.12);
   box-shadow:0 10px 30px rgba(0,0,0,0.45);
   color:rgba(255,255,255,0.92);
@@ -326,7 +326,7 @@ st.markdown("""
   left:18px;
   width:12px;
   height:12px;
-  background:rgba(20,24,32,0.96);
+  background:#141820;
   border-left:1px solid rgba(255,255,255,0.12);
   border-top:1px solid rgba(255,255,255,0.12);
   transform:rotate(45deg);
@@ -342,7 +342,7 @@ st.markdown("""
 /* Bigger interpretation text */
 .interpretation-note{
   margin-top:6px;
-  font-size:14px;      /* increased */
+  font-size:20px;      /* increased */
   line-height:1.35;
   color:rgba(255,255,255,0.85);
 }
