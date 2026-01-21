@@ -681,6 +681,24 @@ try:
 
                 st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
 
+                graph_info_block(
+                    "diag_1_scatter",
+                    params_md="""
+                **Parameters of the graph**
+                - **X:** Wind Speed (m/s or km/h)
+                - **Y:** PM2.5 and PM10 concentration (µg/m³)
+                - **Marks:** points (observations)
+                - **Lines:** fitted trend lines for PM2.5 and PM10
+                """,
+                    working_md="""
+                **Working of the graph**
+                - Shows how PM changes as wind speed changes.
+                - Trend lines summarize the average relationship (dispersion effect).
+                - Used to infer whether air is “stagnant” (high PM) vs “ventilated” (low PM).
+                """,
+                )
+                st.caption(outcome_1_wind_speed_pm(city_df))
+
                 # ==========================================
                 # Wind Direction vs Median PM2.5 (single panel)
                 # Color/series = wind band (Low vs Moderate)
@@ -723,11 +741,21 @@ try:
                 fig_wind_pm.update_layout(height=PANEL_H, margin=PANEL_MARGIN, dragmode=False)
                 st.plotly_chart(fig_wind_pm, use_container_width=True, config=PLOTLY_CONFIG)
 
-                # --- INFO NOTE ---
-                st.caption("""
-                **Role in Smog Analysis:** Measures "Dispersion Capacity."
-                A downward trend line proves that higher wind speeds are successfully cleaning the air. If the line is flat, wind is ineffective.
-                """)
+                graph_info_block(
+                    "diag_3_dir_split",
+                    params_md="""
+                **Parameters of the graph**
+                - **X:** wind direction bins (N, NE, E, SE, S, SW, W, NW)
+                - **Y:** Median PM2.5 (µg/m³)
+                - **Series:** two categories by wind speed (Low vs Moderate)
+                """,
+                    working_md="""
+                **Working of the graph**
+                - For each direction, computes median PM2.5 separately for low-wind vs moderate-wind.
+                - Tests whether direction effects persist when air is moving vs stagnating.
+                """,
+                )
+                st.caption(outcome_3_dir_split_wind(city_df))
 
             with g2:
                 st.markdown(f"**Pollution Source ({selected_city})**")
@@ -976,6 +1004,27 @@ try:
                     with right:
                         st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
+                    graph_info_block(
+                        "diag_2_rose_map",
+                        params_md="""
+                    **Parameters of the graph**
+
+                    **Wind rose**
+                    - **Direction bins:** N, NE, E, SE, S, SW, W, NW
+                    - **Radial value:** mean/median PM2.5 and PM10 (µg/m³)
+
+                    **Map**
+                    - **Center:** target district
+                    - **Highlighted sectors:** directions associated with higher PM
+                    """,
+                        working_md="""
+                    **Working of the graph**
+                    - Wind rose groups observations by wind direction and computes average PM per direction.
+                    - Map visualizes the “dirty direction bins” as corridors to interpret likely source regions.
+                    """,
+                    )
+                    st.caption(outcome_2_wind_rose_map(city_df))
+
                 # ==========================================
                 # Ratio Analysis: (PM2.5 / PM10) vs Wind, colored by Fire (local_fire_frp)
                 # ==========================================
@@ -1018,12 +1067,25 @@ try:
 
                     st.plotly_chart(fig_ratio, use_container_width=True, config=PLOTLY_CONFIG)
 
+                    graph_info_block(
+                        "diag_4_ratio",
+                        params_md="""
+                    **Parameters of the graph**
+                    - **X:** wind speed
+                    - **Y:** Ratio R = PM2.5 / PM10
+                    - **Color scale:** Fire FRP (district-level)
+                    - **Optional:** trend line for ratio vs wind speed
+                    """,
+                        working_md="""
+                    **Working of the graph**
+                    - Ratio indicates particle mix:
+                    - **Higher ratio:** fine particles dominate (smoke/combustion/secondary PM)
+                    - **Lower ratio:** coarse dust dominates
+                    - Color (FRP) tests whether higher fire intensity aligns with higher fine-particle dominance.
+                    """,
+                    )
+                    st.caption(outcome_4_ratio_wind_frp(ratio_df, fire_col))
 
-                # --- INFO NOTE ---
-                st.caption("""
-                **Role in Smog Analysis:** Identifies the "Source."
-                Long bars indicate which direction the pollution is blowing from (e.g., East = Cross-border crop burning; West = Local vehicular emissions).
-                """)
 
             # ==========================================
             # Fire Lag Test (TRUE DAILY LAG):
@@ -1089,6 +1151,23 @@ try:
                 fig_fire_lag.update_layout(height=420, margin=dict(l=10, r=10, t=60, b=10), dragmode=False)
 
                 st.plotly_chart(fig_fire_lag, use_container_width=True, config=PLOTLY_CONFIG)
+
+                graph_info_block(
+                    "diag_5_lag",
+                    params_md="""
+                **Parameters of the graph**
+                - **X:** Fire FRP with lag (Fire(t), Fire(t−1), Fire(t−2))
+                - **Y:** PM2.5 at time t
+                - **Series/colors:** separate point sets per lag (0/1/2)
+                - **Trend line per lag:** recommended
+                """,
+                    working_md="""
+                **Working of the graph**
+                - Tests whether PM responds to fires immediately or after a delay.
+                - Strongest relationship indicates likely timing of smoke impact: same day vs next day vs two days later.
+                """,
+                )
+                st.caption(outcome_5_fire_lag(daily))
             
             with st.expander(f"View Raw Data for {selected_city}"):
                 st.dataframe(city_df)
