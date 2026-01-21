@@ -18,21 +18,6 @@ def _toggle_button(label: str, key: str):
         st.session_state[key] = not st.session_state[key]
     return st.session_state[key]
 
-def graph_info_block(key_prefix: str, params_md: str, working_md: str):
-    c1, c2 = st.columns(2)
-    show_params = False
-    show_working = False
-
-    with c1:
-        show_params = _toggle_button("Parameters", f"{key_prefix}_params")
-    with c2:
-        show_working = _toggle_button("Working", f"{key_prefix}_working")
-
-    if show_params:
-        st.markdown(params_md)
-    if show_working:
-        st.markdown(working_md)
-
 # -------------------------------
 # Stats helpers for "outcome note"
 # -------------------------------
@@ -245,6 +230,22 @@ def make_sector_polygon(lat: float, lon: float, start_bearing: float, end_bearin
     lons = [p[1] for p in poly]
     return lats, lons
 
+def hover_info_block(key_prefix: str, params_html: str, working_html: str):
+    # key_prefix is just to keep uniqueness; not used by CSS but good practice
+    st.markdown(f"""
+    <div class="hover-info-row" id="{key_prefix}">
+      <div class="hover-btn">
+        Parameters
+        <div class="hover-pop">{params_html}</div>
+      </div>
+
+      <div class="hover-btn">
+        Working
+        <div class="hover-pop">{working_html}</div>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
 PLOTLY_CONFIG = {
     "displayModeBar": True,
     "displaylogo": False,
@@ -258,6 +259,96 @@ PANEL_MARGIN = dict(l=10, r=10, t=45, b=10)
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Punjab Smog Intelligence", page_icon="🌫️", layout="wide")
+
+# --- GRAPH BUTTON CINFIG ---
+st.markdown("""
+<style>
+/* Container holding the two hover buttons */
+.hover-info-row{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  margin-top:6px;
+  margin-bottom:6px;
+}
+
+/* Pill button */
+.hover-btn{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 12px;
+  font-size:12px;
+  line-height:1;
+  border-radius:999px; /* 50% rounded */
+  border:1px solid rgba(255,255,255,0.18);
+  background:rgba(255,255,255,0.06);
+  color:rgba(255,255,255,0.92);
+  cursor:pointer;
+  user-select:none;
+  transition:background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.hover-btn:hover{
+  background:rgba(255,255,255,0.10);
+  border-color:rgba(255,255,255,0.28);
+  transform:translateY(-1px);
+}
+
+/* Bubble popover (hidden by default) */
+.hover-pop{
+  position:absolute;
+  left:0;
+  top:110%;
+  width:360px;
+  max-width:70vw;
+  padding:10px 12px;
+  border-radius:14px;
+  background:rgba(20,24,32,0.96);
+  border:1px solid rgba(255,255,255,0.12);
+  box-shadow:0 10px 30px rgba(0,0,0,0.45);
+  color:rgba(255,255,255,0.92);
+  font-size:12px;
+
+  opacity:0;
+  visibility:hidden;
+  transform:translateY(-4px);
+  transition:opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  z-index:9999;
+}
+
+/* Small tail like a chat bubble */
+.hover-pop:before{
+  content:"";
+  position:absolute;
+  top:-7px;
+  left:18px;
+  width:12px;
+  height:12px;
+  background:rgba(20,24,32,0.96);
+  border-left:1px solid rgba(255,255,255,0.12);
+  border-top:1px solid rgba(255,255,255,0.12);
+  transform:rotate(45deg);
+}
+
+/* Show popover only when hovering over the button */
+.hover-btn:hover .hover-pop{
+  opacity:1;
+  visibility:visible;
+  transform:translateY(0);
+}
+
+/* Bigger interpretation text */
+.interpretation-note{
+  margin-top:6px;
+  font-size:14px;      /* increased */
+  line-height:1.35;
+  color:rgba(255,255,255,0.85);
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # --- UX POLISH (Transitions + Seamless Reruns) ---
 def inject_global_ux_css():
@@ -681,23 +772,27 @@ try:
 
                 st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
 
-                graph_info_block(
+                hover_info_block(
                     "diag_1_scatter",
-                    params_md="""
-                **Parameters of the graph**
-                - **X:** Wind Speed (m/s or km/h)
-                - **Y:** PM2.5 and PM10 concentration (µg/m³)
-                - **Marks:** points (observations)
-                - **Lines:** fitted trend lines for PM2.5 and PM10
-                """,
-                    working_md="""
-                **Working of the graph**
-                - Shows how PM changes as wind speed changes.
-                - Trend lines summarize the average relationship (dispersion effect).
-                - Used to infer whether air is “stagnant” (high PM) vs “ventilated” (low PM).
-                """,
+                    params_html="""
+                    <b>Parameters of the graph</b><br>
+                    • <b>X:</b> Wind Speed (m/s or km/h)<br>
+                    • <b>Y:</b> PM2.5 and PM10 concentration (µg/m³)<br>
+                    • <b>Marks:</b> points (observations)<br>
+                    • <b>Lines:</b> fitted trend lines for PM2.5 and PM10
+                    """,
+                    working_html="""
+                    <b>Working of the graph</b><br>
+                    • Plots how PM changes as wind speed changes.<br>
+                    • Trend line summarizes the average relationship (dispersion effect).<br>
+                    • Used to infer whether air is “stagnant” (high PM) vs “ventilated” (low PM).
+                    """,
                 )
-                st.caption(outcome_1_wind_speed_pm(city_df))
+
+                st.markdown(
+                    f"<div class='interpretation-note'>{outcome_1_wind_speed_pm(city_df)}</div>",
+                    unsafe_allow_html=True
+                )
 
                 # ==========================================
                 # Wind Direction vs Median PM2.5 (single panel)
@@ -741,21 +836,25 @@ try:
                 fig_wind_pm.update_layout(height=PANEL_H, margin=PANEL_MARGIN, dragmode=False)
                 st.plotly_chart(fig_wind_pm, use_container_width=True, config=PLOTLY_CONFIG)
 
-                graph_info_block(
+                hover_info_block(
                     "diag_3_dir_split",
-                    params_md="""
-                **Parameters of the graph**
-                - **X:** wind direction bins (N, NE, E, SE, S, SW, W, NW)
-                - **Y:** Median PM2.5 (µg/m³)
-                - **Series:** two categories by wind speed (Low vs Moderate)
-                """,
-                    working_md="""
-                **Working of the graph**
-                - For each direction, computes median PM2.5 separately for low-wind vs moderate-wind.
-                - Tests whether direction effects persist when air is moving vs stagnating.
-                """,
+                    params_html="""
+                    <b>Parameters of the graph</b><br>
+                    • <b>X:</b> Wind direction bins (N, NE, E, SE, S, SW, W, NW)<br>
+                    • <b>Y:</b> Median PM2.5 (µg/m³)<br>
+                    • <b>Series:</b> two categories by wind speed (Low vs Moderate)
+                    """,
+                    working_html="""
+                    <b>Working of the graph</b><br>
+                    • For each direction bin, compute median PM2.5 separately for low-wind vs moderate-wind.<br>
+                    • Tests whether direction effects persist when air is moving vs just stagnating.
+                    """,
                 )
-                st.caption(outcome_3_dir_split_wind(city_df))
+
+                st.markdown(
+                    f"<div class='interpretation-note'>{outcome_3_dir_split_wind(city_df)}</div>",
+                    unsafe_allow_html=True
+                )
 
             with g2:
                 st.markdown(f"**Pollution Source ({selected_city})**")
@@ -1004,26 +1103,28 @@ try:
                     with right:
                         st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
 
-                    graph_info_block(
+                    hover_info_block(
                         "diag_2_rose_map",
-                        params_md="""
-                    **Parameters of the graph**
-
-                    **Wind rose**
-                    - **Direction bins:** N, NE, E, SE, S, SW, W, NW
-                    - **Radial value:** mean/median PM2.5 and PM10 (µg/m³)
-
-                    **Map**
-                    - **Center:** target district
-                    - **Highlighted sectors:** directions associated with higher PM
-                    """,
-                        working_md="""
-                    **Working of the graph**
-                    - Wind rose groups observations by wind direction and computes average PM per direction.
-                    - Map visualizes the “dirty direction bins” as corridors to interpret likely source regions.
-                    """,
+                        params_html="""
+                        <b>Parameters of the graph</b><br><br>
+                        <b>Wind rose</b><br>
+                        • <b>Direction bins:</b> N, NE, E, SE, S, SW, W, NW<br>
+                        • <b>Radial value:</b> mean/median PM2.5 and PM10 (µg/m³)<br><br>
+                        <b>Map</b><br>
+                        • <b>Center:</b> target district<br>
+                        • <b>Highlighted sectors:</b> directions associated with higher PM
+                        """,
+                        working_html="""
+                        <b>Working of the graph</b><br>
+                        • Wind rose groups observations by wind direction and computes average PM per direction.<br>
+                        • Map visualizes those “dirty direction bins” as corridors to interpret likely source regions.
+                        """,
                     )
-                    st.caption(outcome_2_wind_rose_map(city_df))
+
+                    st.markdown(
+                        f"<div class='interpretation-note'>{outcome_2_wind_rose_map(city_df)}</div>",
+                        unsafe_allow_html=True
+                    )
 
                 # ==========================================
                 # Ratio Analysis: (PM2.5 / PM10) vs Wind, colored by Fire (local_fire_frp)
@@ -1067,25 +1168,28 @@ try:
 
                     st.plotly_chart(fig_ratio, use_container_width=True, config=PLOTLY_CONFIG)
 
-                    graph_info_block(
+                    hover_info_block(
                         "diag_4_ratio",
-                        params_md="""
-                    **Parameters of the graph**
-                    - **X:** wind speed
-                    - **Y:** Ratio R = PM2.5 / PM10
-                    - **Color scale:** Fire FRP (district-level)
-                    - **Optional:** trend line for ratio vs wind speed
-                    """,
-                        working_md="""
-                    **Working of the graph**
-                    - Ratio indicates particle mix:
-                    - **Higher ratio:** fine particles dominate (smoke/combustion/secondary PM)
-                    - **Lower ratio:** coarse dust dominates
-                    - Color (FRP) tests whether higher fire intensity aligns with higher fine-particle dominance.
-                    """,
+                        params_html="""
+                        <b>Parameters of the graph</b><br>
+                        • <b>X:</b> Wind speed<br>
+                        • <b>Y:</b> Ratio R = PM2.5 / PM10<br>
+                        • <b>Color scale:</b> Fire FRP (district-level)<br>
+                        • <b>Optional:</b> trend line for ratio vs wind speed
+                        """,
+                        working_html="""
+                        <b>Working of the graph</b><br>
+                        • Ratio indicates particle “type mix”:<br>
+                        &nbsp;&nbsp;– Higher ratio → fine particles dominate (smoke/combustion/secondary PM)<br>
+                        &nbsp;&nbsp;– Lower ratio → coarse dust dominates<br>
+                        • FRP color shows whether higher fire intensity aligns with fine-particle dominance.
+                        """,
                     )
-                    st.caption(outcome_4_ratio_wind_frp(ratio_df, fire_col))
 
+                    st.markdown(
+                        f"<div class='interpretation-note'>{outcome_4_ratio_wind_frp(ratio_df, fire_col)}</div>",
+                        unsafe_allow_html=True
+                    )
 
             # ==========================================
             # Fire Lag Test (TRUE DAILY LAG):
@@ -1152,22 +1256,27 @@ try:
 
                 st.plotly_chart(fig_fire_lag, use_container_width=True, config=PLOTLY_CONFIG)
 
-                graph_info_block(
+                hover_info_block(
                     "diag_5_lag",
-                    params_md="""
-                **Parameters of the graph**
-                - **X:** Fire FRP with lag (Fire(t), Fire(t−1), Fire(t−2))
-                - **Y:** PM2.5 at time t
-                - **Series/colors:** separate point sets per lag (0/1/2)
-                - **Trend line per lag:** recommended
-                """,
-                    working_md="""
-                **Working of the graph**
-                - Tests whether PM responds to fires immediately or after a delay.
-                - Strongest relationship indicates likely timing of smoke impact: same day vs next day vs two days later.
-                """,
+                    params_html="""
+                    <b>Parameters of the graph</b><br>
+                    • <b>X:</b> Fire FRP with lag (Fire(t), Fire(t−1), Fire(t−2))<br>
+                    • <b>Y:</b> PM2.5 at time t<br>
+                    • <b>Series/colors:</b> separate point sets per lag (0/1/2)<br>
+                    • <b>Trend line:</b> per lag (recommended)
+                    """,
+                    working_html="""
+                    <b>Working of the graph</b><br>
+                    • Tests whether PM responds to fires immediately or after a delay.<br>
+                    • Strongest relationship indicates likely timing of smoke impact:
+                        same day vs next day vs two days later.
+                    """,
                 )
-                st.caption(outcome_5_fire_lag(daily))
+
+                st.markdown(
+                    f"<div class='interpretation-note'>{outcome_5_fire_lag(daily)}</div>",
+                    unsafe_allow_html=True
+                )
             
             with st.expander(f"View Raw Data for {selected_city}"):
                 st.dataframe(city_df)
