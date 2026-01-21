@@ -311,7 +311,7 @@ st.markdown("""
   color:rgba(255,255,255,0.92);
   font-size:12px;
 
-  opacity:0;
+  /* opacity:0; */
   visibility:hidden;
   transform:translateY(-4px);
   transition:opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
