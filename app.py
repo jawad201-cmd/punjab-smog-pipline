@@ -342,7 +342,8 @@ st.markdown("""
 /* Bigger interpretation text */
 .interpretation-note{
   margin-top:6px;
-  font-size:20px;      /* increased */
+  margin-buttom:20px;
+  font-size:14px;      /* increased */
   line-height:1.35;
   color:rgba(255,255,255,0.85);
 }
