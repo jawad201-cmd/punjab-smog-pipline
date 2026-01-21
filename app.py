@@ -378,7 +378,15 @@ def inject_global_ux_css():
         border-radius: 16px !important;
         overflow: hidden !important;
         }
-       
+
+        /* allow overflow so hover UI isn't clipped */
+        div[data-testid="stPlotlyChart"]{
+        overflow: visible !important;
+        }
+        div[data-testid="stVerticalBlock"]{
+        overflow: visible !important;
+        }
+               
         </style>
         """,
         unsafe_allow_html=True,
@@ -428,53 +436,55 @@ st.markdown("""
 .hover-pop{
   position:absolute;
   left:0;
-  top:120%;
+
+  /* open upward to avoid clipping by next row */
+  bottom:120%;
+  top:auto;
 
   width:360px;
   max-width:70vw;
   padding:10px 12px;
-
   border-radius:14px;
 
-  /* solid background */
   background:#141820 !important;
+  opacity:1 !important;             /* force non-transparent */
   border:1px solid rgba(255,255,255,0.14);
-  box-shadow:0 10px 30px rgba(0,0,0,0.50);
+  box-shadow:0 10px 30px rgba(0,0,0,0.55);
 
   color:rgba(255,255,255,0.95);
   font-size:12px;
   line-height:1.35;
 
-  /* prevent text overflow mess */
   white-space:normal;
   max-height:220px;
   overflow:auto;
 
-  opacity:0;
   visibility:hidden;
-  transform:translateY(-4px);
+  transform:translateY(4px);
   transition:opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
-  z-index:9999;
+
+  z-index:999999;                   /* above plotly layers */
 }
 
-/* Small tail like a chat bubble */
 .hover-pop:before{
   content:"";
   position:absolute;
-  top:-7px;
+  bottom:-7px;
   left:18px;
   width:12px;
   height:12px;
 
   background:#141820 !important;
-  border-left:1px solid rgba(255,255,255,0.14);
-  border-top:1px solid rgba(255,255,255,0.14);
+  opacity:1 !important;
+
+  border-right:1px solid rgba(255,255,255,0.14);
+  border-bottom:1px solid rgba(255,255,255,0.14);
+
   transform:rotate(45deg);
 }
 
 /* Show popover only when hovering over the button */
 .hover-btn:hover .hover-pop{
-  opacity:1;
   visibility:visible;
   transform:translateY(0);
 }
