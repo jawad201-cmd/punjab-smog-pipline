@@ -231,15 +231,14 @@ def make_sector_polygon(lat: float, lon: float, start_bearing: float, end_bearin
     return lats, lons
 
 def hover_info_block(key_prefix: str, params_html: str, working_html: str):
-    # key_prefix is just to keep uniqueness; not used by CSS but good practice
     st.markdown(f"""
     <div class="hover-info-row" id="{key_prefix}">
-      <div class="hover-btn">
+      <div class="hover-btn" tabindex="0" role="button" aria-label="Parameters">
         Parameters
         <div class="hover-pop">{params_html}</div>
       </div>
 
-      <div class="hover-btn">
+      <div class="hover-btn" tabindex="0" role="button" aria-label="Working">
         Working
         <div class="hover-pop">{working_html}</div>
       </div>
@@ -386,7 +385,106 @@ def inject_global_ux_css():
         div[data-testid="stVerticalBlock"]{
         overflow: visible !important;
         }
-               
+
+        /* =========================
+        RESPONSIVE LAYOUT SYSTEM
+        ========================= */
+
+        /* Make Streamlit columns wrap instead of forcing two columns on small screens */
+        div[data-testid="stHorizontalBlock"]{
+        flex-wrap: wrap !important;
+        gap: 0.9rem !important;
+        }
+
+        /* Each column can shrink & wrap nicely */
+        div[data-testid="column"]{
+        min-width: 280px;
+        }
+
+        /* Tablet: tighten padding + slightly smaller headings */
+        @media (max-width: 1024px){
+        .block-container{
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
+        h1 { font-size: 1.55rem !important; }
+        h2 { font-size: 1.25rem !important; }
+        h3 { font-size: 1.10rem !important; }
+        }
+
+        /* Mobile: stack all columns full-width */
+        @media (max-width: 768px){
+        /* Force columns to become full width */
+        div[data-testid="column"]{
+            flex: 0 0 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+        }
+
+        /* Reduce overall padding */
+        .block-container{
+            padding-left: 0.85rem !important;
+            padding-right: 0.85rem !important;
+            padding-top: 1rem !important;
+        }
+
+        /* Reduce metric card padding on small screens */
+        div[data-testid="stMetric"]{
+            padding: 10px 12px !important;
+        }
+
+        /* Plotly charts: reduce hover shadow lift so it doesn't feel "jumpy" on mobile */
+        div[data-testid="stPlotlyChart"]:hover{
+            transform: none !important;
+            box-shadow: none !important;
+        }
+        }
+
+        /* Very small phones */
+        @media (max-width: 420px){
+        .block-container{
+            padding-left: 0.65rem !important;
+            padding-right: 0.65rem !important;
+        }
+        h1 { font-size: 1.35rem !important; }
+        h2 { font-size: 1.15rem !important; }
+        h3 { font-size: 1.00rem !important; }
+
+        /* Make dropdowns + inputs feel less cramped */
+        div[data-testid="stSelectbox"], div[data-testid="stDateInput"]{
+            margin-bottom: 0.25rem !important;
+        }
+        }
+
+        /* -----------------------------
+        Hover info popover: responsive
+        ----------------------------- */
+
+        /* Wider popovers on desktop; adaptive width on mobile */
+        .hover-pop{
+        width: 360px;
+        max-width: 70vw;
+        }
+
+        /* On mobile, popover should fit screen and not overflow */
+        @media (max-width: 768px){
+        .hover-pop{
+            width: min(92vw, 420px) !important;
+            max-width: 92vw !important;
+            left: 0 !important;
+        }
+        }
+
+        /* Touch devices don't have hover. We'll allow "press" + "focus" to show the box. */
+        @media (hover: none){
+        .hover-btn:active .hover-pop{
+            visibility: visible !important;
+            transform: translateY(0) !important;
+        }
+        }
+
+        
+
         </style>
         """,
         unsafe_allow_html=True,
@@ -487,6 +585,12 @@ st.markdown("""
 .hover-btn:hover .hover-pop{
   visibility:visible;
   transform:translateY(0);
+}
+            
+/* Also show on keyboard focus (and mobile tap focus) */
+.hover-btn:focus-within .hover-pop{
+  visibility: visible;
+  transform: translateY(0);
 }
 
 /* Bigger interpretation text + real spacing below it */
