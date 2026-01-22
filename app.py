@@ -603,6 +603,66 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+<script>
+(function () {
+  let t = null;
+
+  function applyLegendLayout() {
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    if (!window.Plotly) return;
+
+    document.querySelectorAll(".js-plotly-plot").forEach((el) => {
+      if (!el || !el.layout) return;
+
+      if (!isMobile) return; // only change on mobile (as you requested)
+
+      const currentTop = (el.layout.margin && el.layout.margin.t) ? el.layout.margin.t : 0;
+
+      const updates = {
+        // Move normal legend to top (horizontal)
+        "legend.orientation": "h",
+        "legend.x": 0,
+        "legend.y": 1.12,
+        "legend.xanchor": "left",
+        "legend.yanchor": "bottom",
+
+        // Give extra top margin so legend doesn't overlap the title/plot
+        "margin.t": Math.max(currentTop, 80)
+      };
+
+      // If plot uses a continuous color scale (coloraxis), move that colorbar to top as well
+      if (el.layout.coloraxis) {
+        updates["coloraxis.colorbar.orientation"] = "h";
+        updates["coloraxis.colorbar.x"] = 0;
+        updates["coloraxis.colorbar.y"] = 1.18;
+        updates["coloraxis.colorbar.xanchor"] = "left";
+        updates["coloraxis.colorbar.yanchor"] = "bottom";
+        updates["coloraxis.colorbar.len"] = 0.90;
+        updates["coloraxis.colorbar.thickness"] = 12;
+      }
+
+      window.Plotly.relayout(el, updates);
+    });
+  }
+
+  function scheduleApply() {
+    if (t) clearTimeout(t);
+    t = setTimeout(applyLegendLayout, 250);
+  }
+
+  // Run on load + resize
+  window.addEventListener("load", scheduleApply);
+  window.addEventListener("resize", scheduleApply);
+
+  // Run when Streamlit re-renders DOM
+  const obs = new MutationObserver(scheduleApply);
+  obs.observe(document.body, { childList: true, subtree: true });
+
+})();
+</script>
+""", unsafe_allow_html=True)
+
 def persist_scroll_position_across_reruns():
     components.html(
         """
