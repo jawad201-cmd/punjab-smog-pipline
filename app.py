@@ -918,6 +918,7 @@ try:
                 margin=dict(l=10, r=10, t=10, b=10),
             )
             
+            st.plotly_chart(fig_bar, use_container_width=True, config=PLOTLY_CONFIG)
             # Mobile-only legend (Top 10 Polluted Districts)
             st.markdown("""
             <div class="mobile-legend">
@@ -925,7 +926,6 @@ try:
                 <div class="item"><span class="swatch" style="background:#FFA500"></span>PM10</div>
             </div>
             """, unsafe_allow_html=True)
-            st.plotly_chart(fig_bar, use_container_width=True, config=PLOTLY_CONFIG)
 
             # --- INFO NOTE ---
             st.caption("""
@@ -1033,13 +1033,13 @@ try:
                 fig_scatter.update_traces(marker=dict(size=10))
                 fig_scatter.update_layout(height=PANEL_H, margin=PANEL_MARGIN, dragmode=False)
 
+                st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
                 st.markdown("""
                 <div class="mobile-legend">
-                <div class="item"><span class="swatch" style="background:#FF4B4B"></span>PM2.5</div>
-                <div class="item"><span class="swatch" style="background:#FFA500"></span>PM10</div>
+                    <div class="item"><span class="swatch" style="background:#FF4B4B"></span>PM2.5</div>
+                    <div class="item"><span class="swatch" style="background:#FFA500"></span>PM10</div>
                 </div>
                 """, unsafe_allow_html=True)
-                st.plotly_chart(fig_scatter, use_container_width=True, config=PLOTLY_CONFIG)
 
                 hover_info_block(
                     "diag_1_scatter",
@@ -1103,13 +1103,13 @@ try:
                 )
 
                 fig_wind_pm.update_layout(height=PANEL_H, margin=PANEL_MARGIN, dragmode=False)
+                st.plotly_chart(fig_wind_pm, use_container_width=True, config=PLOTLY_CONFIG)
                 st.markdown("""
                 <div class="mobile-legend">
                     <div class="item"><span class="swatch" style="background:#6EA8FF"></span>Low (≤7 km/h)</div>
                     <div class="item"><span class="swatch" style="background:#FFD166"></span>Moderate (&gt;7 km/h)</div>
                 </div>
                 """, unsafe_allow_html=True)
-                st.plotly_chart(fig_wind_pm, use_container_width=True, config=PLOTLY_CONFIG)
 
                 hover_info_block(
                     "diag_3_dir_split",
@@ -1371,12 +1371,6 @@ try:
 
                     left, right = st.columns([1, 1.35], gap="small")  # map gets a bit more width
 
-                    st.markdown("""
-                    <div class="mobile-legend">
-                        <div class="item"><span class="swatch" style="background:#FF4B4B"></span>PM2.5</div>
-                        <div class="item"><span class="swatch" style="background:#FFA500"></span>PM10</div>
-                    </div>
-                    """, unsafe_allow_html=True)
 
                     with left:
                         st.plotly_chart(fig_rose, use_container_width=True, config=PLOTLY_CONFIG)
@@ -1384,6 +1378,13 @@ try:
                     fig_map_rose.update_layout(mapbox=dict(center=dict(lat=src_lat, lon=src_lon), zoom=6.2))
                     with right:
                         st.plotly_chart(fig_map_rose, use_container_width=True, config=PLOTLY_CONFIG)
+                
+                    st.markdown("""
+                    <div class="mobile-legend">
+                        <div class="item"><span class="swatch" style="background:#FF4B4B"></span>PM2.5</div>
+                        <div class="item"><span class="swatch" style="background:#FFA500"></span>PM10</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
                     hover_info_block(
                         "diag_2_rose_map",
@@ -1448,13 +1449,13 @@ try:
                     fig_ratio.update_traces(marker=dict(size=10))
                     fig_ratio.update_layout(height=PANEL_H, dragmode=False, margin=dict(l=10, r=10, t=45, b=10))
 
+                    st.plotly_chart(fig_ratio, use_container_width=True, config=PLOTLY_CONFIG)
                     st.markdown("""
                     <div class="mobile-legend">
                         <div class="item"><b>Local Fire FRP</b></div>
                         <div class="grad"></div>
                     </div>
                     """, unsafe_allow_html=True)
-                    st.plotly_chart(fig_ratio, use_container_width=True, config=PLOTLY_CONFIG)
 
                     hover_info_block(
                         "diag_4_ratio",
@@ -1542,6 +1543,7 @@ try:
                 fig_fire_lag.update_traces(marker=dict(size=9))
                 fig_fire_lag.update_layout(height=420, margin=dict(l=10, r=10, t=60, b=10), dragmode=False)
 
+                st.plotly_chart(fig_fire_lag, use_container_width=True, config=PLOTLY_CONFIG)
                 st.markdown("""
                 <div class="mobile-legend">
                     <div class="item"><span class="swatch" style="background:#6EA8FF"></span>Lag 0 (t)</div>
@@ -1549,7 +1551,6 @@ try:
                     <div class="item"><span class="swatch" style="background:#FF4B4B"></span>Lag 2 (t-2 days)</div>
                 </div>
                 """, unsafe_allow_html=True)
-                st.plotly_chart(fig_fire_lag, use_container_width=True, config=PLOTLY_CONFIG)
 
                 hover_info_block(
                     "diag_5_lag",
