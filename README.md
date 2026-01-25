@@ -2,14 +2,11 @@
 
 A real-time air quality monitoring and analysis dashboard for Punjab, Pakistan. This platform provides actionable insights on pollution patterns across 40+ districts, designed for environmental agencies, public health officials, researchers, and the general public.
 
-🔗 **Live Demo:** https://punjab-smog-dashboard.vercel.app/
-
+**Live Demo:** https://punjab-smog-dashboard.vercel.app/
 
 ## Overview
 
 Punjab faces severe seasonal smog affecting millions of residents annually. This platform addresses the challenge by centralizing fragmented air quality data into a unified, interactive dashboard that enables data-driven decision making for environmental policy and public health advisories.
-
----
 
 ## Features
 
@@ -20,8 +17,6 @@ Punjab faces severe seasonal smog affecting millions of residents annually. This
 - **District Diagnostics** — Deep-dive analysis for individual districts with neighboring area comparisons
 - **Report Generation** — One-click PDF and PowerPoint export for stakeholder presentations
 - **Mobile Responsive** — Full functionality on desktop, tablet, and mobile devices
-
----
 
 ## How It Works
 ```
@@ -53,8 +48,6 @@ Data Sources → Pipeline → Database → Frontend → User
 - Vercel provides edge deployment with global CDN
 - Automatic deployments on every push to main branch
 
----
-
 ## Tech Stack
 
 | Layer | Technology |
@@ -66,8 +59,6 @@ Data Sources → Pipeline → Database → Frontend → User
 | CI/CD | GitHub Actions |
 | Hosting | Vercel (Edge Network) |
 | Reports | jsPDF, PptxGenJS, html2canvas |
-
----
 
 ## Dashboard Sections
 
@@ -94,8 +85,6 @@ Data Sources → Pipeline → Database → Frontend → User
 - PM2.5/PM10 ratio analysis
 - Wind direction band analysis
 
----
-
 ## Project Structure
 ```
 punjab-smog-dashboard/
@@ -115,8 +104,6 @@ punjab-smog-dashboard/
 ├── build.js                # Build script
 └── vercel.json             # Vercel configuration
 ```
-
----
 
 ## Getting Started
 
@@ -158,8 +145,6 @@ punjab-smog-dashboard/
    - `VERCEL_PROJECT_ID`
 4. GitHub Actions will automatically build and deploy
 
----
-
 ## Use Cases
 
 - **Environmental Compliance** — Monitor pollution levels against regulatory standards
@@ -168,17 +153,13 @@ punjab-smog-dashboard/
 - **Policy Development** — Data-driven insights for environmental regulations
 - **Research & Analysis** — Historical data access for academic studies
 
----
-
 ## License
 
 MIT License — feel free to use and modify for your own projects.
-
----
 
 ## Contact
 
 For questions, collaboration, or similar project inquiries:
 
-- **LinkedIn:** [Your LinkedIn URL]
-- **Email:** [Your Email]
+- **LinkedIn:** www.linkedin.com/in/jawad-ahmad-05b33036b
+- **Email:** jawadprod1999@gmail.com
