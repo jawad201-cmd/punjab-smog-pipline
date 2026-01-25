@@ -2,9 +2,8 @@
 
 A real-time air quality monitoring and analysis dashboard for Punjab, Pakistan. This platform provides actionable insights on pollution patterns across 40+ districts, designed for environmental agencies, public health officials, researchers, and the general public.
 
-🔗 **Live Demo:** [Your Vercel URL]
+🔗 **Live Demo:** https://punjab-smog-dashboard.vercel.app/
 
----
 
 ## Overview
 
